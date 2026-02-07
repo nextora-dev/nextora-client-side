@@ -1,7 +1,7 @@
 // useAuth Hook - Authentication utilities
 'use client';
 
-import { useAuthStore } from '../store/auth.store';
+import { useAuthStore } from '@/store';
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 import { ROUTES } from '@/constants';
@@ -9,7 +9,7 @@ import { LoginCredentials } from '@/features';
 
 export function useAuth() {
     const router = useRouter();
-    const { user, isAuthenticated, isLoading, error, login, register, logout, clearError, getDefaultRedirect } = useAuthStore();
+    const { user, isAuthenticated, isLoading, error, login, logout, clearError, getDefaultRedirect } = useAuthStore();
 
     const loginWithRedirect = useCallback(async (credentials: LoginCredentials) => {
         // Perform login and redirect based on role. Add debug logs to help trace issues.
@@ -69,7 +69,6 @@ export function useAuth() {
         isLoading,
         error,
         login: loginWithRedirect,
-        register,
         logout: logoutWithRedirect,
         clearError,
         redirectIfAuthenticated,

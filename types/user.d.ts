@@ -1,6 +1,6 @@
 // User Types
-import { RoleType } from '../constants/roles';
-import { PermissionType } from '../constants/permissions';
+import { RoleType } from '@/constants';
+import { PermissionType } from '@/constants';
 
 export interface User {
     id: string;

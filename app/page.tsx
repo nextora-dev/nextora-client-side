@@ -23,7 +23,6 @@ export default function LandingPage() {
     const router = useRouter();
 
     const onLogin = () => router.push('/login');
-    const onRegister = () => router.push('/register');
 
     const features = [
         { icon: SchoolIcon, title: 'Academic Excellence', description: 'Access courses, assignments, and grades' },
@@ -134,26 +133,6 @@ export default function LandingPage() {
                                         }}
                                     >
                                         Login
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        size="large"
-                                        onClick={onRegister}
-                                        sx={{
-                                            px: 4,
-                                            py: 1.5,
-                                            borderRadius: 3,
-                                            fontWeight: 600,
-                                            fontSize: '1rem',
-                                            borderWidth: 2,
-                                            '&:hover': {
-                                                borderWidth: 2,
-                                                transform: 'scale(1.02)',
-                                            },
-                                            transition: 'all 0.2s',
-                                        }}
-                                    >
-                                        Register
                                     </Button>
                                 </Stack>
 

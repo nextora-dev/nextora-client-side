@@ -64,13 +64,6 @@ export function LoginCard({
             <CardContent sx={{ p: 4 }}>
                 {children}
             </CardContent>
-
-            {/* Footer */}
-            {footer && (
-                <Box sx={{ px: 4, pb: 4, textAlign: 'center' }}>
-                    {footer}
-                </Box>
-            )}
         </Card>
     );
 }

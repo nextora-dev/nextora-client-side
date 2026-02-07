@@ -4,7 +4,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { AuthUser, LoginCredentials, RegisterData } from '@/features/auth/auth.types';
-import { login as loginService, logout as logoutService, register as registerService, getUserFromStoredToken } from '@/features/auth/services';
+import { login as loginService, logout as logoutService, getUserFromStoredToken } from '@/features/auth/services';
 import { ROLES, RoleType } from '@/constants/roles';
 
 interface AuthState {
@@ -17,7 +17,6 @@ interface AuthState {
 
 interface AuthActions {
     login: (credentials: LoginCredentials) => Promise<AuthUser>;
-    register: (data: RegisterData) => Promise<void>;
     logout: () => Promise<void>;
     clearError: () => void;
     setUser: (user: AuthUser | null) => void;
@@ -59,18 +58,6 @@ export const useAuthStore = create<AuthStore>()(
                     return user;
                 } catch (error) {
                     const message = error instanceof Error ? error.message : 'Login failed';
-                    set({ error: message, isLoading: false });
-                    throw error;
-                }
-            },
-
-            register: async (data: RegisterData) => {
-                set({ isLoading: true, error: null });
-                try {
-                    await registerService(data);
-                    set({ isLoading: false });
-                } catch (error) {
-                    const message = error instanceof Error ? error.message : 'Registration failed';
                     set({ error: message, isLoading: false });
                     throw error;
                 }

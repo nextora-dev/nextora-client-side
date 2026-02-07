@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Typography, Link } from '@mui/material';
 import { ROLES, mapLegacyRole, ROLE_LABELS } from '@/constants/roles';
 import { useToast } from '@/components/common';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,22 +32,6 @@ export default function LoginPage() {
         }
     };
 
-    const registerFooter = (
-        <Typography variant="body2" color="text.secondary">
-            Don&apos;t have an account?{' '}
-            <Link
-                component="button"
-                type="button"
-                variant="body2"
-                onClick={() => router.push('/register')}
-                underline="hover"
-                fontWeight={600}
-            >
-                Register here
-            </Link>
-        </Typography>
-    );
-
     return (
         <LoginLayout
             onBack={() => router.push('/')}
@@ -59,7 +42,6 @@ export default function LoginPage() {
                 title="Welcome Back"
                 subtitle="Sign in to continue to Nextora"
                 headerGradient="linear-gradient(90deg, #2563EB 0%, #7C3AED 100%)"
-                footer={registerFooter}
             >
                 <LoginForm
                     roleOptions={USER_ROLE_OPTIONS}

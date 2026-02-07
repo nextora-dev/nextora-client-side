@@ -179,9 +179,35 @@ export const api = {
             case '/auth/logout':
                 return (await handleLogout(data, config?.headers as Record<string, unknown> | undefined)) as unknown as T;
             case '/auth/forgot-password':
+            case '/v1/auth/forgot-password':
+                return ({ message: 'If an account exists, you will receive a reset email.', success: true } as unknown) as T;
             case '/auth/reset-password':
+            case '/v1/auth/reset-password':
+                return ({ message: 'Password has been reset successfully.', success: true } as unknown) as T;
+            case '/v1/auth/reset-password/validate':
+                return ({ valid: true, message: 'Token is valid.' } as unknown) as T;
+            case '/auth/send-otp':
+            case '/v1/auth/send-otp':
+                return ({ message: 'OTP has been sent to your email.', success: true } as unknown) as T;
+            case '/auth/verify-otp':
+            case '/v1/auth/verify-otp': {
+                // Mock OTP verification - accept any 6-digit OTP for testing
+                const otpData = data as { otp?: string } | undefined;
+                const otp = otpData?.otp || '';
+                const isValid = otp.length === 6 && /^\d+$/.test(otp);
+                return ({
+                    verified: isValid,
+                    token: isValid ? 'mock-reset-token-' + Date.now() : '',
+                    message: isValid ? 'OTP verified successfully.' : 'Invalid OTP. Please try again.',
+                } as unknown) as T;
+            }
+            case '/auth/resend-otp':
+            case '/v1/auth/resend-otp':
+                return ({ message: 'OTP has been resent to your email.', success: true } as unknown) as T;
             case '/auth/verify-email':
+            case '/v1/auth/verify-email':
             case '/auth/resend-verification':
+            case '/v1/auth/resend-verification':
                 return ({ message: 'OK' } as unknown) as T;
             default:
                 return ({} as unknown) as T;

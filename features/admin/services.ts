@@ -1,5 +1,5 @@
 // Admin Services - API calls for admin operations
-import { api } from '../../lib/api-client';
+import { api } from '@/lib';
 import { PaginatedResponse, PaginationParams } from '../../types/api';
 import { AdminUserListItem, AdminUserFilters, CreateUserByAdminRequest, UpdateUserByAdminRequest, AdminStats } from './admin.types';
 

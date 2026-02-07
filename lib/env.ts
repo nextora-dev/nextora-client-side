@@ -20,7 +20,7 @@ export const env = {
     // API Configuration
     // Default API URL changed to 8080 to match the BFF proxy and ARCHITECTURE.md default
     // If your backend runs on a different port, set NEXT_PUBLIC_API_URL in .env.local
-    API_URL: getEnvVar('NEXT_PUBLIC_API_URL', 'http://localhost:8081/api'),
+    API_URL: getEnvVar('NEXT_PUBLIC_API_URL', 'http://localhost:8081/api/v1'),
     API_TIMEOUT: parseInt(getEnvVar('NEXT_PUBLIC_API_TIMEOUT', '10000'), 10),
 
     // Auth Configuration (only expose public client-safe values here)
