@@ -1,5 +1,5 @@
 // Permission helpers for use in components
-import { PermissionType } from '../constants/permissions';
+import { PermissionType } from '@/constants';
 import { hasPermission, hasAnyPermission, hasAllPermissions, canAccessRoute } from '../features/authorization/permission.guard';
 
 export { hasPermission, hasAnyPermission, hasAllPermissions, canAccessRoute };

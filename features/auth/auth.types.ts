@@ -1,6 +1,6 @@
 // Auth Types
-import { RoleType } from '../../constants/roles';
-import { PermissionType } from '../../constants/permissions';
+import { RoleType } from '@/constants';
+import { PermissionType } from '@/constants';
 
 export interface AuthUser {
     id: string;
@@ -15,8 +15,7 @@ export interface AuthUser {
 export interface LoginCredentials {
     email: string;
     password: string;
-    // Optional role to support backend that requires a role in the login payload
-    role?: string;
+    role: string;
 }
 
 export interface RegisterData {
@@ -105,4 +104,24 @@ export interface ResetPasswordData {
 
 export interface VerifyEmailData {
     token: string;
+}
+
+// OTP Verification Types
+export interface SendOtpData {
+    email: string;
+}
+
+export interface VerifyOtpData {
+    email: string;
+    otp: string;
+}
+
+export interface VerifyOtpResponse {
+    verified: boolean;
+    token: string; // Reset token to use for password reset
+    message: string;
+}
+
+export interface ResendOtpData {
+    email: string;
 }
