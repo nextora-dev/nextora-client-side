@@ -1,5 +1,5 @@
 // Token Service - JWT utilities
-import { JWTPayload, DecodedToken } from '../../types/jwt';
+import { JWTPayload, DecodedToken } from '@/types';
 
 export function decodeToken(token: string): JWTPayload | null {
     try {

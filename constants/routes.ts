@@ -8,48 +8,72 @@ export const ROUTES = {
     RESET_PASSWORD: '/reset-password',
     VERIFY_EMAIL: '/verify-email',
 
-    // User routes (Student/Normal user)
-    USER: {
-        DASHBOARD: '/user/dashboard',
-        PROFILE: '/user/profile',
-        EVENTS: '/user/events',
-        KUPPI: '/user/kuppi',
-        VOTING: '/user/voting',
-        LOST_FOUND: '/user/lost-found',
-        ACADEMIC: {
-            ROOT: '/user/academic',
-            CALENDAR: '/user/academic/calendar',
-            MODULES: '/user/academic/modules',
-            RESULTS: '/user/academic/results',
-            TIMETABLE: '/user/academic/timetable',
-        },
-        BOARDING: '/user/boarding',
-        INTERNSHIPS: '/user/internships',
-        MAPS: '/user/maps',
-        MEETINGS: '/user/meetings',
-        SRU: '/user/sru',
+    // Student routes
+    STUDENT: {
+        DASHBOARD: '/student',
+        PROFILE: '/student/profile',
+        EVENTS: '/student/events',
+        KUPPI: '/student/kuppi',
+        VOTING: '/student/voting',
+        LOST_FOUND: '/student/lost-found',
+        CALENDAR: '/student/calendar',
+        BOARDING: '/student/boarding',
+        INTERNSHIPS: '/student/internships',
+        MAPS: '/student/maps',
+        MEETINGS: '/student/meetings',
+        SRU: '/student/sru',
+    },
+
+    // Academic Staff routes
+    ACADEMIC: {
+        DASHBOARD: '/academic',
+        PROFILE: '/academic/profile',
+        COURSES: '/academic/courses',
+        STUDENTS: '/academic/students',
+        ATTENDANCE: '/academic/attendance',
+        GRADES: '/academic/grades',
+        KUPPI: '/academic/kuppi',
+        MEETINGS: '/academic/meetings',
+        CALENDAR: '/academic/calendar',
+        RESOURCES: '/academic/resources',
+        MAPS: '/academic/maps',
+    },
+
+    // Non-Academic Staff routes
+    NON_ACADEMIC: {
+        DASHBOARD: '/non-academic',
+        PROFILE: '/non-academic/profile',
+        TASKS: '/non-academic/tasks',
+        INVENTORY: '/non-academic/inventory',
+        MAINTENANCE: '/non-academic/maintenance',
+        REQUESTS: '/non-academic/requests',
+        FACILITIES: '/non-academic/facilities',
+        EVENTS: '/non-academic/events',
+        CALENDAR: '/non-academic/calendar',
+        MAPS: '/non-academic/maps',
     },
 
     // Admin routes
     ADMIN: {
-        DASHBOARD: '/admin/dashboard',
+        DASHBOARD: '/admin',
         USERS: '/admin/users',
         ROLES: '/admin/roles',
         EVENTS: '/admin/events',
-        KUPPI: '/admin/kuppi',
-        VOTING: '/admin/voting',
-        LOST_FOUND: '/admin/lost-found',
+        COURSES: '/admin/courses',
         REPORTS: '/admin/reports',
+        APPROVALS: '/admin/approvals',
+        SETTINGS: '/admin/settings',
     },
 
     // Super Admin routes
     SUPER_ADMIN: {
-        DASHBOARD: '/super-admin/dashboard',
-        SYSTEM_SETTINGS: '/super-admin/system-settings',
-        AUDIT_LOGS: '/super-admin/audit-logs',
+        DASHBOARD: '/super-admin',
+        ADMINS: '/super-admin/admins',
         USERS: '/super-admin/users',
-        ROLES: '/super-admin/roles',
-        BACKUP: '/super-admin/backup',
+        SYSTEM: '/super-admin/system',
+        SECURITY: '/super-admin/security',
+        AUDIT: '/super-admin/audit',
+        SETTINGS: '/super-admin/settings',
     },
 
     // API routes
@@ -70,17 +94,18 @@ export const PUBLIC_ROUTES = [
 ];
 
 export const PROTECTED_ROUTES_PREFIX = [
-    '/user',
+    '/student',
+    '/academic',
+    '/non-academic',
     '/admin',
     '/super-admin',
 ];
 
 // Default redirect after login based on role
 export const DEFAULT_REDIRECT_BY_ROLE: Record<string, string> = {
-    'ROLE_STUDENT': ROUTES.USER.DASHBOARD,
-    'ROLE_LECTURER': ROUTES.USER.DASHBOARD,
-    'ROLE_ACADEMIC_STAFF': ROUTES.USER.DASHBOARD,
-    'ROLE_NON_ACADEMIC_STAFF': ROUTES.USER.DASHBOARD,
+    'ROLE_STUDENT': ROUTES.STUDENT.DASHBOARD,
+    'ROLE_ACADEMIC_STAFF': ROUTES.ACADEMIC.DASHBOARD,
+    'ROLE_NON_ACADEMIC_STAFF': ROUTES.NON_ACADEMIC.DASHBOARD,
     'ROLE_ADMIN': ROUTES.ADMIN.DASHBOARD,
     'ROLE_SUPER_ADMIN': ROUTES.SUPER_ADMIN.DASHBOARD,
 };

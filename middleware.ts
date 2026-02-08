@@ -3,23 +3,28 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Constants (Note: Can't import from constants/ in Edge runtime, so defined inline)
-const PUBLIC_ROUTES = ['/', '/admin/login', '/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
-const PROTECTED_PREFIXES = ['/user', '/admin', '/super-admin'];
+const AUTH_ROUTES = ['/login', '/admin/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+const PUBLIC_ROUTES = ['/', ...AUTH_ROUTES, '/forgot-password/verify', '/forgot-password/reset', '/forgot-password/success', '/offline'];
 
 // Role-based route access configuration
 const ROUTE_ROLE_MAP: Record<string, string[]> = {
-    '/user': ['ROLE_STUDENT', 'ROLE_ACADEMIC_STAFF', 'ROLE_NON_ACADEMIC_STAFF', 'ROLE_ADMIN', 'ROLE_SUPER_ADMIN'],
-    '/admin': ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'],
     '/super-admin': ['ROLE_SUPER_ADMIN'],
+    '/admin': ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'],
+    '/student': ['ROLE_STUDENT'],
+    '/academic': ['ROLE_ACADEMIC_STAFF'],
+    '/non-academic': ['ROLE_NON_ACADEMIC_STAFF'],
 } as const;
 
 // Default dashboard paths by role
 const DEFAULT_DASHBOARD: Record<string, string> = {
-    'ROLE_SUPER_ADMIN': '/super-admin/dashboard',
-    'ROLE_ADMIN': '/admin/dashboard',
+    'ROLE_SUPER_ADMIN': '/super-admin',
+    'ROLE_ADMIN': '/admin',
+    'ROLE_STUDENT': '/student',
+    'ROLE_ACADEMIC_STAFF': '/academic',
+    'ROLE_NON_ACADEMIC_STAFF': '/non-academic',
 } as const;
 
-const DEFAULT_USER_DASHBOARD = '/user/dashboard';
+const DEFAULT_USER_DASHBOARD = '/student';
 
 interface JWTPayload {
     role?: string;
@@ -63,11 +68,11 @@ function getDefaultRedirect(role?: string): string {
 }
 
 function isPublicRoute(pathname: string): boolean {
-    return PUBLIC_ROUTES.includes(pathname);
+    return PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
 }
 
-function isProtectedRoute(pathname: string): boolean {
-    return PROTECTED_PREFIXES.some(prefix => pathname.startsWith(prefix));
+function isAuthRoute(pathname: string): boolean {
+    return AUTH_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'));
 }
 
 function isStaticOrApiRoute(pathname: string): boolean {
@@ -86,36 +91,35 @@ function checkRoleAccess(pathname: string, userRole?: string): boolean {
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // Allow public routes
-    if (isPublicRoute(pathname)) {
-        return NextResponse.next();
-    }
-
     // Allow static files and API routes
     if (isStaticOrApiRoute(pathname)) {
         return NextResponse.next();
     }
 
-    // Check if route is protected
-    if (!isProtectedRoute(pathname)) {
+    // Get token
+    const token = getTokenFromRequest(request);
+    const payload = token ? decodeJWT(token) : null;
+    const isValidToken = payload && !isTokenExpired(payload.exp);
+
+    // If user is authenticated and trying to access login pages, redirect to dashboard
+    if (isValidToken && isAuthRoute(pathname)) {
+        const dashboardUrl = new URL(getDefaultRedirect(payload.role), request.url);
+        return NextResponse.redirect(dashboardUrl);
+    }
+
+    // Allow public routes for unauthenticated users
+    if (isPublicRoute(pathname)) {
         return NextResponse.next();
     }
 
-    // Get token
-    const token = getTokenFromRequest(request);
-    if (!token) {
+    // Protected routes - check authentication
+    if (!token || !isValidToken) {
         return createLoginRedirect(request, { redirect: pathname });
     }
 
-    // Decode and validate token
-    const payload = decodeJWT(token);
-    if (!payload || isTokenExpired(payload.exp)) {
-        return createLoginRedirect(request, { session: 'expired', redirect: pathname });
-    }
-
     // Check role-based access
-    if (!checkRoleAccess(pathname, payload.role)) {
-        return NextResponse.redirect(new URL(getDefaultRedirect(payload.role), request.url));
+    if (!checkRoleAccess(pathname, payload?.role)) {
+        return NextResponse.redirect(new URL(getDefaultRedirect(payload?.role), request.url));
     }
 
     return NextResponse.next();

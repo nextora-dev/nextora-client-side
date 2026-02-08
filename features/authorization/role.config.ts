@@ -50,7 +50,7 @@ export function getRolesWithPermission(permission: PermissionType): RoleType[] {
 
 // Route access configuration
 export const ROUTE_ACCESS_CONFIG: Record<string, { roles: RoleType[]; permissions?: PermissionType[] }> = {
-    '/user': {
+    '/': {
         roles: [ROLES.STUDENT, ROLES.ACADEMIC_STAFF, ROLES.NON_ACADEMIC_STAFF, ROLES.ADMIN, ROLES.SUPER_ADMIN],
     },
     '/admin': {

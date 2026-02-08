@@ -3,3 +3,4 @@ export * from './jwt';
 export * from './auth-session';
 export * from './permissions';
 export { env } from './env';
+export * from './utils';

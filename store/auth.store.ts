@@ -28,11 +28,11 @@ interface AuthActions {
 type AuthStore = AuthState & AuthActions;
 
 const DEFAULT_DASHBOARDS: Record<RoleType, string> = {
-    [ROLES.SUPER_ADMIN]: '/super-admin/dashboard',
-    [ROLES.ADMIN]: '/admin/dashboard',
-    [ROLES.STUDENT]: '/user/dashboard',
-    [ROLES.ACADEMIC_STAFF]: '/user/dashboard',
-    [ROLES.NON_ACADEMIC_STAFF]: '/user/dashboard',
+    [ROLES.SUPER_ADMIN]: '/super-admin',
+    [ROLES.ADMIN]: '/admin',
+    [ROLES.STUDENT]: '/student',
+    [ROLES.ACADEMIC_STAFF]: '/academic',
+    [ROLES.NON_ACADEMIC_STAFF]: '/non-academic',
 };
 
 export const useAuthStore = create<AuthStore>()(
@@ -87,7 +87,7 @@ export const useAuthStore = create<AuthStore>()(
 
             getDefaultRedirect: (user: AuthUser | null) => {
                 if (!user?.role) return '/login';
-                return DEFAULT_DASHBOARDS[user.role] || '/user/dashboard';
+                return DEFAULT_DASHBOARDS[user.role] || '/';
             },
         }),
         {

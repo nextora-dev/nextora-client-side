@@ -248,7 +248,7 @@ const getLightThemeTokens = (): ThemeOptions => ({
     },
 });
 
-// Theme Provider Component - Light mode only
+// Theme Provider Component - Light theme only
 interface ThemeContextProviderProps {
     children: React.ReactNode;
 }

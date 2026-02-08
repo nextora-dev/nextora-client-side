@@ -1,0 +1,9 @@
+// Dashboard Widgets - Industry-Level Components
+export { WelcomeBanner } from './WelcomeBanner';
+export { StatsCard } from './StatsCard';
+export { QuickAccessGrid } from './QuickAccessGrid';
+export { EventsWidget } from './EventsWidget';
+export { NotificationsWidget } from './NotificationsWidget';
+export { ActivityFeed } from './ActivityFeed';
+export { ProgressWidget } from './ProgressWidget';
+export { CalendarWidget } from './CalendarWidget';
