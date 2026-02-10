@@ -5,7 +5,7 @@ import { ROLES, mapLegacyRole, ROLE_LABELS } from '@/constants/roles';
 import { useToast } from '@/components/common';
 import { useAuth } from '@/hooks/useAuth';
 import { LoginLayout, LoginForm, ForgotPasswordModal } from '@/components/auth';
-import { forgotPassword, verifyOtp, resendOtp, resetPassword } from '@/features/auth/services';
+import { forgotPassword } from '@/features/auth/services';
 
 // Only normal user roles (not admin/super-admin)
 const USER_ROLE_OPTIONS = [
@@ -33,37 +33,13 @@ export default function LoginPage() {
         }
     };
 
-    // Forgot password modal handlers
+    // Forgot password handler - calls backend API
     const handleSendEmail = async (email: string) => {
         const response = await forgotPassword({ email });
         if (!response.success) {
             throw new Error(response.message || 'Failed to send email');
         }
-        showToast('success', 'Email Sent', 'Verification code sent to your email');
-    };
-
-    const handleVerifyOtp = async (email: string, otp: string) => {
-        const response = await verifyOtp({ email, otp });
-        if (!response.verified) {
-            throw new Error(response.message || 'Invalid verification code');
-        }
-        return { token: response.token };
-    };
-
-    const handleResendOtp = async (email: string) => {
-        const response = await resendOtp({ email });
-        showToast('success', 'Code Sent', response.message);
-    };
-
-    const handleResetPassword = async (token: string, password: string) => {
-        const response = await resetPassword({ token, password, confirmPassword: password });
-        if (!response.success) {
-            throw new Error(response.message || 'Failed to reset password');
-        }
-    };
-
-    const handleForgotPasswordComplete = () => {
-        showToast('success', 'Password Reset', 'Your password has been reset successfully');
+        showToast('success', 'Email Sent', 'Password reset link sent to your email');
     };
 
     return (
@@ -97,10 +73,6 @@ export default function LoginPage() {
                 open={forgotPasswordOpen}
                 onClose={() => setForgotPasswordOpen(false)}
                 onSendEmail={handleSendEmail}
-                onVerifyOtp={handleVerifyOtp}
-                onResendOtp={handleResendOtp}
-                onResetPassword={handleResetPassword}
-                onComplete={handleForgotPasswordComplete}
             />
         </LoginLayout>
     );

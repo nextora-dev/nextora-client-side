@@ -179,15 +179,23 @@ export async function forgotPassword(data: ForgotPasswordData): Promise<{ messag
 
 /** Resets user password with valid reset token */
 export async function resetPassword(data: ResetPasswordData): Promise<{ message: string; success: boolean }> {
-    const response = await api.post<{ message: string; success?: boolean }>(AUTH_ENDPOINTS.RESET_PASSWORD, {
-        token: data.token,
-        password: data.password,
-        confirmPassword: data.confirmPassword,
-    });
-    return {
-        message: response.message || SECURITY_MESSAGES.PASSWORD_RESET_SUCCESS,
-        success: response.success ?? true,
-    };
+    try {
+        const response = await api.post<{ message: string; success?: boolean }>(AUTH_ENDPOINTS.RESET_PASSWORD, {
+            token: data.token,
+            password: data.password,
+            confirmPassword: data.confirmPassword,
+        });
+        return {
+            message: response.message || SECURITY_MESSAGES.PASSWORD_RESET_SUCCESS,
+            success: response.success ?? true,
+        };
+    } catch (error: unknown) {
+        const apiError = error as { message?: string; error?: string };
+        return {
+            message: apiError.message || apiError.error || 'Failed to reset password. Please try again.',
+            success: false,
+        };
+    }
 }
 
 /** Validates a password reset token */
