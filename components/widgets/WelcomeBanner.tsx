@@ -23,9 +23,7 @@ export const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
     userAvatar,
     greeting,
     subtitle = "Here's what's happening with your university life today",
-    isLoading = false,
-    onNotificationClick,
-    notificationCount = 0,
+    isLoading = false
 }) => {
     const getGreeting = () => {
         if (greeting) return greeting;
@@ -49,7 +47,7 @@ export const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
             <Box
                 sx={{
                     p: { xs: 3, md: 4 },
-                    borderRadius: 4,
+                    borderRadius: 2,
                     background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #818CF8 100%)',
                     position: 'relative',
                     overflow: 'hidden',
@@ -73,7 +71,7 @@ export const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
             transition={{ duration: 0.5, ease: 'easeOut' }}
             sx={{
                 p: { xs: 3, md: 4 },
-                borderRadius: 4,
+                borderRadius: 2,
                 background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #818CF8 100%)',
                 color: 'white',
                 position: 'relative',
@@ -153,40 +151,6 @@ export const WelcomeBanner: React.FC<WelcomeBannerProps> = ({
                     >
                         {getCurrentDate()}
                     </Typography>
-                    {onNotificationClick && (
-                        <IconButton
-                            onClick={onNotificationClick}
-                            sx={{
-                                bgcolor: 'rgba(255,255,255,0.15)',
-                                backdropFilter: 'blur(10px)',
-                                '&:hover': {
-                                    bgcolor: 'rgba(255,255,255,0.25)',
-                                },
-                            }}
-                        >
-                            <NotificationsActiveIcon sx={{ color: 'white', fontSize: 20 }} />
-                            {notificationCount > 0 && (
-                                <Box
-                                    sx={{
-                                        position: 'absolute',
-                                        top: 4,
-                                        right: 4,
-                                        width: 18,
-                                        height: 18,
-                                        borderRadius: '50%',
-                                        bgcolor: '#EF4444',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.65rem',
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    {notificationCount > 9 ? '9+' : notificationCount}
-                                </Box>
-                            )}
-                        </IconButton>
-                    )}
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>

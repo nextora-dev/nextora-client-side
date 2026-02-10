@@ -70,8 +70,6 @@ export default function NonAcademicDashboard() {
                     userName={user?.firstName || 'Staff'}
                     subtitle="Here's your work overview for today"
                     isLoading={false}
-                    notificationCount={12}
-                    onNotificationClick={() => handleNavigation('/non-academic/notifications')}
                 />
             </Box>
 

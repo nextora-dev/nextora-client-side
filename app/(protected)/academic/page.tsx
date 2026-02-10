@@ -64,8 +64,6 @@ export default function AcademicDashboard() {
                     userName={user?.firstName || 'Lecturer'}
                     subtitle="Here's your academic overview for today"
                     isLoading={false}
-                    notificationCount={5}
-                    onNotificationClick={() => handleNavigation('/academic/notifications')}
                 />
             </Box>
 
