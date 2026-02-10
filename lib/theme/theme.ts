@@ -1,13 +1,13 @@
 'use client';
 
 import { createTheme, ThemeOptions } from '@mui/material/styles';
-import { Inter } from 'next/font/google';
+import { Poppins } from 'next/font/google';
 import { componentOverrides } from './components';
 
 // ============================================
-// Font Configuration - Using Inter for Modern Look
+// Font Configuration - Using Poppins for Modern Look
 // ============================================
-const inter = Inter({
+const poppins = Poppins({
     weight: ['300', '400', '500', '600', '700', '800'],
     subsets: ['latin'],
     display: 'swap',
@@ -147,7 +147,7 @@ const lightPalette = {
 // Typography Configuration - SaaS Dashboard Scale
 // ============================================
 const typography = {
-    fontFamily: inter.style.fontFamily,
+    fontFamily: poppins.style.fontFamily,
     h1: {
         fontSize: '1.5rem', // 24px base, responsive in components
         fontWeight: 600,
