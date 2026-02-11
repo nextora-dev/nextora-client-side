@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { AuthUser, LoginCredentials, RegisterData } from '@/features/auth/auth.types';
+import { AuthUser, LoginRequest } from '@/features/auth/auth.types';
 import { login as loginService, logout as logoutService, getUserFromStoredToken } from '@/features/auth/services';
 import { ROLES, RoleType } from '@/constants/roles';
 
@@ -16,7 +16,7 @@ interface AuthState {
 }
 
 interface AuthActions {
-    login: (credentials: LoginCredentials) => Promise<AuthUser>;
+    login: (credentials: LoginRequest) => Promise<AuthUser>;
     logout: () => Promise<void>;
     clearError: () => void;
     setUser: (user: AuthUser | null) => void;
@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthStore>()(
                 set({ isHydrated: true });
             },
 
-            login: async (credentials: LoginCredentials) => {
+            login: async (credentials: LoginRequest) => {
                 set({ isLoading: true, error: null });
                 try {
                     const user = await loginService(credentials);

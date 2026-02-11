@@ -9,6 +9,15 @@ export const ROLES = {
 
 export type RoleType = typeof ROLES[keyof typeof ROLES];
 
+export const STUDENT_SUB_ROLES = {
+    NORMAL : 'NORMAL',
+    CLUB_MEMBER : 'CLUB_MEMBER',
+    BATCH_REP: 'BATCH_REP',
+    KUPPI_STUDENT : 'KUPPI_STUDENT'
+} as const;
+
+export type STUDENT_SUB_ROLES = typeof STUDENT_SUB_ROLES[keyof typeof STUDENT_SUB_ROLES];
+
 // Role hierarchy (higher index = more permissions)
 export const ROLE_HIERARCHY: Record<RoleType, number> = {
     [ROLES.STUDENT]: 1,

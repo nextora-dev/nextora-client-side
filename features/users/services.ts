@@ -1,10 +1,10 @@
 // User Services - API calls for user operations
-import { api } from '../../lib/api-client';
-import { UserData, UpdateUserProfileRequest } from './user.types';
+import { api } from '@/lib';
+import { UserData, UpdateUserProfileRequest } from '@/features';
 
 const USER_ENDPOINTS = {
-    PROFILE: '/users/profile',
-    UPDATE_PROFILE: '/users/profile',
+    PROFILE: '/user/me',
+    UPDATE_PROFILE: '/user/me',
     CHANGE_PASSWORD: '/users/change-password',
     UPLOAD_AVATAR: '/users/avatar',
 };

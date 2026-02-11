@@ -91,7 +91,6 @@ const RECENT_ACTIVITY = [
 export default function StudentDashboardPage() {
     const router = useRouter();
     const { user } = useAuth();
-    const { unreadNotificationCount } = useDashboard();
 
     const handleNavigation = (path: string) => router.push(path);
 

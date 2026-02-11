@@ -38,7 +38,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { PushNotificationProvider } from '@/contexts/PushNotificationContext';
 import { NotificationBell, NotificationList } from '@/components/notifications';
-import { useAuthStore } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { selectUser, logoutAsync } from '@/features/auth/authSlice';
 import { getNavigationByRole, getBrandingByRole } from '@/features/dashboard';
 import { ROLES } from '@/constants/roles';
 
@@ -62,8 +63,9 @@ export default function DashboardLayout({
     const profileMenuOpen = Boolean(anchorEl);
     const notificationPopoverOpen = Boolean(notificationAnchorEl);
 
-    // Get user from auth store
-    const { user, logout: storeLogout } = useAuthStore();
+    // Get user from Redux store
+    const dispatch = useAppDispatch();
+    const user = useAppSelector(selectUser);
     const userRole = user?.role || ROLES.STUDENT;
 
     // Get role-based navigation and branding
@@ -83,19 +85,47 @@ export default function DashboardLayout({
 
     const handleLogout = async () => {
         handleProfileMenuClose();
-        await storeLogout();
+        await dispatch(logoutAsync());
         router.push('/login');
     };
 
+    const getUserDisplayName = () => {
+        if (!user) return 'User';
+        const firstName = user.firstName?.trim() || '';
+        const lastName = user.lastName?.trim() || '';
+        if (firstName && lastName) return `${firstName} ${lastName}`;
+        if (firstName) return firstName;
+        if (lastName) return lastName;
+        if (user.email) return user.email.split('@')[0];
+        return 'User';
+    };
+
+    const getUserInitials = () => {
+        if (!user) return 'U';
+        const firstName = user.firstName?.trim() || '';
+        const lastName = user.lastName?.trim() || '';
+        if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
+        if (firstName) return firstName[0].toUpperCase();
+        if (lastName) return lastName[0].toUpperCase();
+        if (user.email) return user.email[0].toUpperCase();
+        return 'U';
+    };
+
+    const getUserRoleLabel = () => {
+        switch (userRole) {
+            case ROLES.SUPER_ADMIN: return 'Super Admin';
+            case ROLES.ADMIN: return 'Administrator';
+            case ROLES.ACADEMIC_STAFF: return 'Academic Staff';
+            case ROLES.NON_ACADEMIC_STAFF: return 'Non-Academic Staff';
+            default: return 'Student';
+        }
+    };
+
     const userData = {
-        name: user ? `${user.firstName} ${user.lastName}` : 'User',
+        name: getUserDisplayName(),
         email: user?.email || '',
-        initials: user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U',
-        role: userRole === ROLES.SUPER_ADMIN ? 'Super Admin'
-            : userRole === ROLES.ADMIN ? 'Administrator'
-            : userRole === ROLES.ACADEMIC_STAFF ? 'Academic Staff'
-            : userRole === ROLES.NON_ACADEMIC_STAFF ? 'Non-Academic Staff'
-            : 'Student',
+        initials: getUserInitials(),
+        role: getUserRoleLabel(),
     };
 
     // Get role-based profile path
@@ -489,7 +519,7 @@ export default function DashboardLayout({
                             sx: {
                                 mt: 1,
                                 minWidth: 220,
-                                borderRadius: 2,
+                                borderRadius: 1,
                                 boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
                             },
                         },

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { ThemeContextProvider } from '@/contexts/ThemeContext';
+import { ReduxProvider } from '@/providers/ReduxProvider';
 import "./globals.css";
 
 /**
@@ -111,11 +112,13 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
       </head>
       <body>
-        <AppRouterCacheProvider>
-          <ThemeContextProvider>
-            {children}
-          </ThemeContextProvider>
-        </AppRouterCacheProvider>
+        <ReduxProvider>
+          <AppRouterCacheProvider>
+            <ThemeContextProvider>
+              {children}
+            </ThemeContextProvider>
+          </AppRouterCacheProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

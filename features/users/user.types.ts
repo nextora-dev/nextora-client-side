@@ -1,39 +1,31 @@
 // User Types
-import { RoleType } from '../../constants/roles';
-import { PermissionType } from '../../constants/permissions';
+import { RoleType } from '@/constants';
+import {
+    AcademicStaffRoleSpecificData,
+    AdminRoleSpecificData,
+    NonAcademicStaffRoleSpecificData,
+    StudentRoleSpecificData
+} from "@/types/user";
+import {StatusType} from "@/constants/status";
 
-export interface UserData {
-    id: string;
+export interface UserProfileResponse {
+    success: boolean;
+    message: string;
+    data: UserProfile;
+    timestamp: string;
+}
+
+export interface UserProfile {
+    id: number;
     email: string;
     firstName: string;
     lastName: string;
+    fullName: string;
+    phoneNumber: string;
     role: RoleType;
-    authorities: PermissionType[];
-    verified: boolean;
+    status: StatusType;
+    userType: string;
     createdAt: string;
-    updatedAt?: string;
-    profile?: UserProfileData;
-}
-
-export interface UserProfileData {
-    phone?: string;
-    avatar?: string;
-    dateOfBirth?: string;
-    address?: string;
-    bio?: string;
-    studentId?: string;
-    employeeId?: string;
-    department?: string;
-    faculty?: string;
-    batch?: string;
-    program?: string;
-}
-
-export interface UpdateUserProfileRequest {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    dateOfBirth?: string;
-    address?: string;
-    bio?: string;
+    updatedAt: string;
+    roleSpecificData: StudentRoleSpecificData | AcademicStaffRoleSpecificData | NonAcademicStaffRoleSpecificData | AdminRoleSpecificData;
 }

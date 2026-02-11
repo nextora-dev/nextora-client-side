@@ -10,7 +10,6 @@ export interface ApiUserResponse {
     lastName: string;
     role: string;
     authorities?: string[];
-    verified: boolean;
 }
 
 export function mapApiUserToAuthUser(apiUser: ApiUserResponse): AuthUser {
@@ -21,7 +20,6 @@ export function mapApiUserToAuthUser(apiUser: ApiUserResponse): AuthUser {
         lastName: apiUser.lastName,
         role: mapLegacyRole(apiUser.role),
         authorities: (apiUser.authorities || []) as PermissionType[],
-        verified: apiUser.verified,
     };
 }
 

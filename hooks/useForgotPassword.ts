@@ -8,12 +8,9 @@
 import { useState, useCallback } from 'react';
 import {
     forgotPassword,
-    verifyOtp,
-    resendOtp,
     resetPassword,
     validateResetToken,
 } from '@/features/auth/services';
-import type { VerifyOtpResponse } from '@/features/auth/auth.types';
 
 // ============================================================================
 // Types
@@ -35,8 +32,6 @@ interface ForgotPasswordState {
 interface UseForgotPasswordReturn {
     state: ForgotPasswordState;
     sendResetEmail: (email: string) => Promise<boolean>;
-    verifyOtpCode: (otp: string) => Promise<VerifyOtpResponse>;
-    resendOtpCode: () => Promise<boolean>;
     submitNewPassword: (password: string, confirmPassword: string) => Promise<boolean>;
     validateToken: (token: string) => Promise<boolean>;
     setEmail: (email: string) => void;
@@ -66,25 +61,6 @@ const INITIAL_STATE: ForgotPasswordState = {
 // Hook Implementation
 // ============================================================================
 
-/**
- * Custom hook for managing the forgot password flow
- *
- * @returns State and actions for password recovery
- *
- * @example
- * ```tsx
- * const { state, sendResetEmail, verifyOtpCode, submitNewPassword } = useForgotPassword();
- *
- * // Step 1: Send reset email
- * await sendResetEmail('user@example.com');
- *
- * // Step 2: Verify OTP
- * await verifyOtpCode('123456');
- *
- * // Step 3: Submit new password
- * await submitNewPassword('newPassword123', 'newPassword123');
- * ```
- */
 export function useForgotPassword(): UseForgotPasswordReturn {
     const [state, setState] = useState<ForgotPasswordState>(INITIAL_STATE);
 
@@ -107,46 +83,6 @@ export function useForgotPassword(): UseForgotPasswordReturn {
         sessionStorage.setItem(SESSION_KEYS.RESET_EMAIL, email);
         return true;
     }, []);
-
-    /** Verifies the OTP code */
-    const verifyOtpCode = useCallback(async (otp: string): Promise<VerifyOtpResponse> => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            const response = await verifyOtp({ email: state.email, otp });
-
-            if (response.verified) {
-                setState(prev => ({ ...prev, resetToken: response.token, step: 'reset', isLoading: false }));
-                sessionStorage.setItem(SESSION_KEYS.RESET_TOKEN, response.token);
-            } else {
-                setState(prev => ({ ...prev, error: response.message || 'Invalid OTP', isLoading: false }));
-            }
-
-            return response;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Verification failed';
-            setError(errorMessage);
-            setLoading(false);
-            throw err;
-        }
-    }, [state.email]);
-
-    /** Resends OTP to email */
-    const resendOtpCode = useCallback(async (): Promise<boolean> => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            await resendOtp({ email: state.email });
-            setLoading(false);
-            return true;
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to resend OTP');
-            setLoading(false);
-            return false;
-        }
-    }, [state.email]);
 
     /** Submits new password */
     const submitNewPassword = useCallback(async (password: string, confirmPassword: string): Promise<boolean> => {
@@ -210,8 +146,6 @@ export function useForgotPassword(): UseForgotPasswordReturn {
     return {
         state,
         sendResetEmail,
-        verifyOtpCode,
-        resendOtpCode,
         submitNewPassword,
         validateToken,
         setEmail,

@@ -1,8 +1,8 @@
 // Auth Session Helper
-import { User } from '../types/user';
+import { User } from '@/types';
 import { isTokenExpired, getUserFromToken } from './jwt';
-import { mapLegacyRole, RoleType, ROLES } from '../constants/roles';
-import { PermissionType } from '../constants/permissions';
+import { mapLegacyRole, RoleType, ROLES } from '@/constants';
+import { PermissionType } from '@/constants';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -80,8 +80,7 @@ export function getCurrentUser(): User | null {
         firstName: tokenUser.firstName,
         lastName: tokenUser.lastName,
         role: mapLegacyRole(tokenUser.role),
-        authorities: tokenUser.authorities as PermissionType[],
-        verified: true,
+        authorities: tokenUser.authorities as PermissionType[]
     };
 }
 
