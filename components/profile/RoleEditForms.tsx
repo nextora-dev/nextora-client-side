@@ -5,7 +5,6 @@
 
 'use client';
 
-import { useState } from 'react';
 import {
     Box,
     Typography,
@@ -18,7 +17,6 @@ import {
     Paper,
     Switch,
     FormControlLabel,
-    MenuItem,
     alpha,
     useTheme,
     Divider,
@@ -30,7 +28,6 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import WorkIcon from '@mui/icons-material/Work';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SecurityIcon from '@mui/icons-material/Security';
-import GroupsIcon from '@mui/icons-material/Groups';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -63,15 +60,6 @@ const itemVariants = {
     show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
 };
 
-// Faculties list
-const FACULTIES = [
-    { value: 'COMPUTING', label: 'Faculty of Computing' },
-    { value: 'ENGINEERING', label: 'Faculty of Engineering' },
-    { value: 'BUSINESS', label: 'Faculty of Business' },
-    { value: 'SCIENCE', label: 'Faculty of Science' },
-    { value: 'HUMANITIES', label: 'Faculty of Humanities' },
-];
-
 // ============================================================================
 // Student Edit Form
 // ============================================================================
@@ -80,10 +68,19 @@ interface StudentEditFormProps {
     data: StudentRoleSpecificData;
     onChange: (field: string, value: string) => void;
     errors?: Record<string, string>;
+    formValues?: Record<string, string | boolean>;  // Current form values from parent
 }
 
-export function StudentEditForm({ data, onChange, errors = {} }: StudentEditFormProps) {
+export function StudentEditForm({ data, onChange, errors = {}, formValues = {} }: StudentEditFormProps) {
     const theme = useTheme();
+
+    // Helper to get current value (prefer formValues over data)
+    const getValue = (field: keyof StudentRoleSpecificData) => {
+        if (formValues && field in formValues) {
+            return formValues[field] as string || '';
+        }
+        return data[field] as string || '';
+    };
 
     return (
         <Stack spacing={3}>
@@ -114,17 +111,13 @@ export function StudentEditForm({ data, onChange, errors = {} }: StudentEditForm
                             <TextField
                                 label="Faculty"
                                 value={data.faculty || ''}
-                                onChange={(e) => onChange('faculty', e.target.value)}
-                                select
+                                disabled
                                 fullWidth
+                                helperText="Cannot be changed"
                                 InputProps={{
                                     startAdornment: <InputAdornment position="start"><BusinessIcon sx={{ color: 'text.secondary' }} /></InputAdornment>,
                                 }}
-                            >
-                                {FACULTIES.map((f) => (
-                                    <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
-                                ))}
-                            </TextField>
+                            />
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
@@ -141,13 +134,14 @@ export function StudentEditForm({ data, onChange, errors = {} }: StudentEditForm
                                 value={data.batch || ''}
                                 disabled
                                 fullWidth
+                                helperText="Cannot be changed"
                             />
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 label="Date of Birth"
                                 type="date"
-                                value={data.dateOfBirth || ''}
+                                value={getValue('dateOfBirth')}
                                 onChange={(e) => onChange('dateOfBirth', e.target.value)}
                                 fullWidth
                                 InputLabelProps={{ shrink: true }}
@@ -159,7 +153,7 @@ export function StudentEditForm({ data, onChange, errors = {} }: StudentEditForm
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 label="Address"
-                                value={data.address || ''}
+                                value={getValue('address')}
                                 onChange={(e) => onChange('address', e.target.value)}
                                 fullWidth
                                 error={!!errors.address}
@@ -178,7 +172,7 @@ export function StudentEditForm({ data, onChange, errors = {} }: StudentEditForm
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 label="Guardian Name"
-                                value={data.guardianName || ''}
+                                value={getValue('guardianName')}
                                 onChange={(e) => onChange('guardianName', e.target.value)}
                                 fullWidth
                                 InputProps={{
@@ -189,7 +183,7 @@ export function StudentEditForm({ data, onChange, errors = {} }: StudentEditForm
                         <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 label="Guardian Phone"
-                                value={data.guardianPhone || ''}
+                                value={getValue('guardianPhone')}
                                 onChange={(e) => onChange('guardianPhone', e.target.value)}
                                 fullWidth
                                 InputProps={{
@@ -274,20 +268,18 @@ export function AcademicStaffEditForm({ data, onChange, errors = {} }: AcademicS
                         <TextField
                             label="Faculty"
                             value={data.faculty || ''}
-                            onChange={(e) => onChange('faculty', e.target.value)}
+                            disabled
+                            helperText="Cannot be changed"
                             select
                             fullWidth
-                        >
-                            {FACULTIES.map((f) => (
-                                <MenuItem key={f.value} value={f.value}>{f.label}</MenuItem>
-                            ))}
-                        </TextField>
+                        />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                         <TextField
                             label="Office Location"
                             value={data.officeLocation || ''}
-                            onChange={(e) => onChange('officeLocation', e.target.value)}
+                            disabled
+                            helperText="Cannot be changed"
                             fullWidth
                         />
                     </Grid>
@@ -295,7 +287,8 @@ export function AcademicStaffEditForm({ data, onChange, errors = {} }: AcademicS
                         <TextField
                             label="Specialization"
                             value={data.specialization || ''}
-                            onChange={(e) => onChange('specialization', e.target.value)}
+                            disabled
+                            helperText="Cannot be changed"
                             fullWidth
                         />
                     </Grid>
@@ -363,7 +356,8 @@ export function NonAcademicStaffEditForm({ data, onChange, errors = {} }: NonAca
                         <TextField
                             label="Work Location"
                             value={data.workLocation || ''}
-                            onChange={(e) => onChange('workLocation', e.target.value)}
+                            disabled
+                            helperText="Cannot be changed"
                             fullWidth
                         />
                     </Grid>
@@ -411,18 +405,6 @@ export function AdminEditForm({ data, onChange, errors = {} }: AdminEditFormProp
                         <TextField label="Assigned Date" value={data.assignedDate || ''} disabled fullWidth />
                     </Grid>
                 </Grid>
-
-                {data.permissions && data.permissions.length > 0 && (
-                    <>
-                        <Divider sx={{ my: 3 }} />
-                        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Permissions (Read-only)</Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            {data.permissions.map((perm, idx) => (
-                                <Chip key={idx} label={perm} size="small" color="error" variant="outlined" />
-                            ))}
-                        </Stack>
-                    </>
-                )}
             </CardContent>
         </MotionCard>
     );
@@ -476,9 +458,10 @@ interface RoleEditFormProps {
     profile: UserProfile | null | undefined;
     onRoleDataChange: (field: string, value: string | boolean) => void;
     errors?: Record<string, string>;
+    formValues?: Record<string, string | boolean>;  // Current form values
 }
 
-export function RoleEditForm({ profile, onRoleDataChange, errors = {} }: RoleEditFormProps) {
+export function RoleEditForm({ profile, onRoleDataChange, errors = {}, formValues = {} }: RoleEditFormProps) {
     // Handle null/undefined profile
     if (!profile || !profile.roleSpecificData) {
         return (
@@ -489,7 +472,7 @@ export function RoleEditForm({ profile, onRoleDataChange, errors = {} }: RoleEdi
     }
 
     if (isStudentProfile(profile)) {
-        return <StudentEditForm data={profile.roleSpecificData} onChange={onRoleDataChange} errors={errors} />;
+        return <StudentEditForm data={profile.roleSpecificData} onChange={onRoleDataChange} errors={errors} formValues={formValues} />;
     }
 
     if (isAcademicStaffProfile(profile)) {

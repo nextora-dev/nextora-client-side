@@ -18,7 +18,8 @@ import {
     PURGE,
     REGISTER,
 } from 'redux-persist';
-import storage from 'redux-persist/lib/storage'; // localStorage
+// Use custom storage that handles SSR (no more "failed to create sync storage" warning)
+import storage from '@/lib/storage';
 
 // ============================================================================
 // Root Reducer

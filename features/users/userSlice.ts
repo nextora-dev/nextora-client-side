@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { getProfile } from './services';
-import { UserProfile } from './unified-user.types';
+import { UserProfile } from '@/features';
 
 // ============================================================================
 // Types
@@ -33,12 +33,9 @@ export const fetchUserProfile = createAsyncThunk<UserProfile, void>(
     'user/fetchUserProfile',
     async (_, { rejectWithValue }) => {
         try {
-            console.log('[UserSlice] Fetching user profile from API...');
 
             // API call to fetch user profile - returns UserProfileResponse with data property
             const response = await getProfile();
-
-            console.log('[UserSlice] API Response:', JSON.stringify(response, null, 2));
 
             let profileData: UserProfile | null = null;
 
@@ -52,28 +49,16 @@ export const fetchUserProfile = createAsyncThunk<UserProfile, void>(
             }
 
             if (!profileData) {
-                console.error('[UserSlice] Invalid response structure:', response);
                 throw new Error('Invalid response structure - no profile data found');
             }
 
-            // Log role-specific data
-            console.log('[UserSlice] Profile loaded:', {
-                id: profileData.id,
-                email: profileData.email,
-                role: profileData.role,
-                hasRoleSpecificData: !!profileData.roleSpecificData,
-                roleSpecificDataKeys: profileData.roleSpecificData ? Object.keys(profileData.roleSpecificData) : [],
-            });
-
             // Ensure roleSpecificData exists (even if empty object)
             if (!profileData.roleSpecificData) {
-                console.warn('[UserSlice] No roleSpecificData in response, using empty object');
                 profileData = { ...profileData, roleSpecificData: {} as any };
             }
 
             return profileData;
         } catch (error: unknown) {
-            console.error('[UserSlice] Error fetching profile:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch user profile';
             return rejectWithValue(errorMessage);
         }

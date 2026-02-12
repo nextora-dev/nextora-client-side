@@ -37,6 +37,10 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useRouter, usePathname } from 'next/navigation';
 import { useProfile } from '@/hooks/useProfile';
 import { RoleEditForm, RoleBadge } from '@/components/profile';
+import { updateProfile, UpdateProfilePayload } from '@/features/users/services';
+import { useAppDispatch } from '@/store';
+import { fetchUserProfile } from '@/features/users/userSlice';
+import { isStudentProfile, isAcademicStaffProfile, isNonAcademicStaffProfile } from '@/features';
 
 const MotionCard = motion.create(Card);
 const MotionBox = motion.create(Box);
@@ -60,6 +64,7 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
     const router = useRouter();
     const pathname = usePathname();
     const theme = useTheme();
+    const dispatch = useAppDispatch();
     const { profile, isLoading, error, refetch } = useProfile({ forceRefresh: true });
 
     // Derive profile path
@@ -68,6 +73,8 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
     const [saving, setSaving] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [deleteProfilePicture, setDeleteProfilePicture] = useState(false);
 
     // Basic profile form state
     const [basicFormData, setBasicFormData] = useState({
@@ -113,14 +120,31 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) {
-                setSnackbar({ open: true, message: 'Image size must be less than 2MB', severity: 'error' });
+            // Validate file size (max 5MB as per backend)
+            if (file.size > 5 * 1024 * 1024) {
+                setSnackbar({ open: true, message: 'Image size must be less than 5MB', severity: 'error' });
                 return;
             }
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                setSnackbar({ open: true, message: 'Only JPEG, PNG, GIF, and WebP images are allowed', severity: 'error' });
+                return;
+            }
+            // Store the file for upload
+            setSelectedFile(file);
+            setDeleteProfilePicture(false);
+            // Create preview
             const reader = new FileReader();
             reader.onloadend = () => setAvatarPreview(reader.result as string);
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleRemoveAvatar = () => {
+        setAvatarPreview(null);
+        setSelectedFile(null);
+        setDeleteProfilePicture(true);
     };
 
     const validateForm = () => {
@@ -140,14 +164,57 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
             return;
         }
 
+        if (!profile) {
+            setSnackbar({ open: true, message: 'No profile data available', severity: 'error' });
+            return;
+        }
+
         setSaving(true);
         try {
-            // TODO: Implement actual API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Build the update payload matching backend @RequestParam fields
+            const updatePayload: UpdateProfilePayload = {
+                firstName: basicFormData.firstName || undefined,
+                lastName: basicFormData.lastName || undefined,
+                phone: basicFormData.phoneNumber || undefined, // Backend uses 'phone'
+            };
+
+            // Add role-specific fields based on user role
+            if (isStudentProfile(profile)) {
+                // Student specific fields
+                updatePayload.address = roleFormData.address as string || undefined;
+                updatePayload.guardianName = roleFormData.guardianName as string || undefined;
+                updatePayload.guardianPhone = roleFormData.guardianPhone as string || undefined;
+                updatePayload.dateOfBirth = roleFormData.dateOfBirth as string || undefined;
+            }
+
+            // Add profile picture if selected
+            if (selectedFile) {
+                updatePayload.profilePicture = selectedFile;
+            }
+
+            // Add delete flag if user wants to remove profile picture
+            if (deleteProfilePicture) {
+                updatePayload.deleteProfilePicture = true;
+            }
+
+            console.log('[EditProfile] Saving profile with payload:', {
+                ...updatePayload,
+                profilePicture: selectedFile ? `File: ${selectedFile.name}` : undefined,
+            });
+
+            // Call the API to update profile
+            const updatedProfile = await updateProfile(updatePayload);
+            console.log('[EditProfile] Profile updated successfully:', updatedProfile);
+
+            // Refresh the profile in Redux store
+            dispatch(fetchUserProfile());
+
             setSnackbar({ open: true, message: 'Profile updated successfully!', severity: 'success' });
             setTimeout(() => router.push(profilePath), 1500);
-        } catch {
-            setSnackbar({ open: true, message: 'Failed to update profile', severity: 'error' });
+        } catch (err) {
+            console.error('[EditProfile] Error saving profile:', err);
+            const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
+            setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         } finally {
             setSaving(false);
         }
@@ -188,7 +255,7 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
                     elevation={0}
                     sx={{
                         p: { xs: 2, md: 3 },
-                        borderRadius: 2,
+                        borderRadius: 1,
                         background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                     }}
                 >
@@ -225,7 +292,7 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Stack spacing={3}>
                         {/* Profile Picture */}
-                        <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                        <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                             <CardContent sx={{ textAlign: 'center', p: 4 }}>
                                 <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>Profile Picture</Typography>
                                 <Box sx={{ position: 'relative', display: 'inline-block', mb: 3 }}>
@@ -254,19 +321,19 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
                                         }}
                                     >
                                         <CameraAltIcon />
-                                        <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
+                                        <input type="file" hidden accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleAvatarChange} />
                                     </IconButton>
                                 </Box>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    JPG, PNG or GIF. Max 2MB
+                                    JPEG, PNG, GIF, or WebP. Max 5MB
                                 </Typography>
                                 <Stack direction="row" spacing={1} justifyContent="center">
                                     <Button variant="outlined" startIcon={<CloudUploadIcon />} component="label" size="small">
                                         Upload
-                                        <input type="file" hidden accept="image/*" onChange={handleAvatarChange} />
+                                        <input type="file" hidden accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleAvatarChange} />
                                     </Button>
-                                    {avatarPreview && (
-                                        <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setAvatarPreview(null)} size="small">
+                                    {(avatarPreview || profile.profilePictureUrl) && (
+                                        <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={handleRemoveAvatar} size="small">
                                             Remove
                                         </Button>
                                     )}
@@ -275,19 +342,19 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
                         </MotionCard>
 
                         {/* Account Info (Read-only) */}
-                        <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                        <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                             <CardContent sx={{ p: 3 }}>
                                 <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Account Info</Typography>
                                 <Stack spacing={2}>
-                                    <Box sx={{ p: 2, bgcolor: alpha(theme.palette.primary.main, 0.04), borderRadius: 2 }}>
+                                    <Box sx={{ p: 2, bgcolor: alpha(theme.palette.primary.main, 0.04), borderRadius: 1 }}>
                                         <Typography variant="caption" color="text.secondary">Role</Typography>
                                         <Box sx={{ mt: 1 }}><RoleBadge role={profile.role} /></Box>
                                     </Box>
-                                    <Box sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, 0.04), borderRadius: 2 }}>
+                                    <Box sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, 0.04), borderRadius: 1 }}>
                                         <Typography variant="caption" color="text.secondary">Status</Typography>
                                         <Typography variant="body1" fontWeight={600} color="success.main">{profile.status}</Typography>
                                     </Box>
-                                    <Box sx={{ p: 2, bgcolor: alpha(theme.palette.info.main, 0.04), borderRadius: 2 }}>
+                                    <Box sx={{ p: 2, bgcolor: alpha(theme.palette.info.main, 0.04), borderRadius: 1 }}>
                                         <Typography variant="caption" color="text.secondary">Email</Typography>
                                         <Typography variant="body2" fontWeight={500}>{profile.email}</Typography>
                                         <Typography variant="caption" color="text.secondary">Cannot be changed</Typography>
@@ -302,7 +369,7 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Stack spacing={3}>
                         {/* Basic Information */}
-                        <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                        <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                             <CardContent sx={{ p: { xs: 3, md: 4 } }}>
                                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
                                     <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
@@ -360,7 +427,7 @@ export default function UnifiedEditProfilePage({ basePath }: UnifiedEditProfileP
                         </MotionCard>
 
                         {/* Role-Specific Edit Form */}
-                        <RoleEditForm profile={profile} onRoleDataChange={handleRoleDataChange} errors={errors} />
+                        <RoleEditForm profile={profile} onRoleDataChange={handleRoleDataChange} errors={errors} formValues={roleFormData} />
 
                         {/* Action Buttons */}
                         <MotionBox variants={itemVariants}>

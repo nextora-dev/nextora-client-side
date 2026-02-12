@@ -11,6 +11,8 @@ import "./globals.css";
  * - Provides social sharing metadata
  */
 export const metadata: Metadata = {
+  // Base URL for resolving relative URLs in metadata
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
     default: "Nextora LMS",
     template: "%s | Nextora LMS",

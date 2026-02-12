@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -42,6 +42,7 @@ import { useAppDispatch, useAppSelector } from '@/store';
 import { selectUser, logoutAsync } from '@/features/auth/authSlice';
 import { getNavigationByRole, getBrandingByRole } from '@/features/dashboard';
 import { ROLES } from '@/constants/roles';
+import { useProfile } from '@/hooks/useProfile';
 
 const DRAWER_WIDTH = 256;
 const DRAWER_COLLAPSED_WIDTH = 64;
@@ -68,6 +69,9 @@ export default function DashboardLayout({
     const user = useAppSelector(selectUser);
     const userRole = user?.role || ROLES.STUDENT;
 
+    // Get full profile data (includes profile picture)
+    const { profile } = useProfile();
+
     // Get role-based navigation and branding
     const navigationItems = useMemo(() => getNavigationByRole(userRole), [userRole]);
     const branding = useMemo(() => getBrandingByRole(userRole), [userRole]);
@@ -89,25 +93,27 @@ export default function DashboardLayout({
         router.push('/login');
     };
 
+    // Use profile data if available, fallback to auth user data
     const getUserDisplayName = () => {
-        if (!user) return 'User';
-        const firstName = user.firstName?.trim() || '';
-        const lastName = user.lastName?.trim() || '';
+        // Prefer profile data over auth user data
+        const firstName = profile?.firstName?.trim() || user?.firstName?.trim() || '';
+        const lastName = profile?.lastName?.trim() || user?.lastName?.trim() || '';
         if (firstName && lastName) return `${firstName} ${lastName}`;
         if (firstName) return firstName;
         if (lastName) return lastName;
-        if (user.email) return user.email.split('@')[0];
+        const email = profile?.email || user?.email;
+        if (email) return email.split('@')[0];
         return 'User';
     };
 
     const getUserInitials = () => {
-        if (!user) return 'U';
-        const firstName = user.firstName?.trim() || '';
-        const lastName = user.lastName?.trim() || '';
+        const firstName = profile?.firstName?.trim() || user?.firstName?.trim() || '';
+        const lastName = profile?.lastName?.trim() || user?.lastName?.trim() || '';
         if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
         if (firstName) return firstName[0].toUpperCase();
         if (lastName) return lastName[0].toUpperCase();
-        if (user.email) return user.email[0].toUpperCase();
+        const email = profile?.email || user?.email;
+        if (email) return email[0].toUpperCase();
         return 'U';
     };
 
@@ -123,9 +129,10 @@ export default function DashboardLayout({
 
     const userData = {
         name: getUserDisplayName(),
-        email: user?.email || '',
+        email: profile?.email || user?.email || '',
         initials: getUserInitials(),
         role: getUserRoleLabel(),
+        profilePictureUrl: profile?.profilePictureUrl || null,
     };
 
     // Get role-based profile path
@@ -486,6 +493,7 @@ export default function DashboardLayout({
                                     </Typography>
                                 </Box>
                                 <Avatar
+                                    src={userData.profilePictureUrl || undefined}
                                     sx={{
                                         width: { xs: 32, lg: 36 },
                                         height: { xs: 32, lg: 36 },
@@ -500,7 +508,7 @@ export default function DashboardLayout({
                                     }}
                                     onClick={handleProfileMenuOpen}
                                 >
-                                    {userData.initials}
+                                    {!userData.profilePictureUrl && userData.initials}
                                 </Avatar>
                             </Box>
                         </Box>
