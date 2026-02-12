@@ -72,11 +72,17 @@ export function getUserFromToken(token: string) {
         return null;
     }
 
+    // Handle fullName from token - split into firstName and lastName
+    const fullName = decoded.fullName?.trim() || '';
+    const nameParts = fullName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
     return {
-        id: decoded.sub,
-        email: decoded.email,
-        firstName: decoded.firstName,
-        lastName: decoded.lastName,
+        id: decoded.sub || String(decoded.userId || ''),
+        email: decoded.sub, // sub contains the email in this JWT structure
+        firstName,
+        lastName,
         role: decoded.role,
         authorities: decoded.authorities || [],
     };

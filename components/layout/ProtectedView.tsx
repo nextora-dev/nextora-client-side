@@ -2,10 +2,10 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { usePermission } from '../../hooks/usePermission';
-import { useRole } from '../../hooks/useRole';
-import { RoleType } from '../../constants/roles';
-import { PermissionType } from '../../constants/permissions';
+import { usePermission } from '@/hooks';
+import { useRole } from '@/hooks';
+import { RoleType } from '@/constants';
+import { PermissionType } from '@/constants';
 
 interface ProtectedViewProps {
     children: ReactNode;

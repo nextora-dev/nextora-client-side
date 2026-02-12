@@ -2,12 +2,13 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { useAuthStore } from '../store/auth.store';
-import { PermissionType } from '../constants/permissions';
-import { hasPermission, hasAnyPermission, hasAllPermissions } from '../features/authorization/permission.guard';
+import { useAppSelector } from '@/store';
+import { selectUser } from '@/features/auth/authSlice';
+import { PermissionType } from '@/constants';
+import { hasPermission, hasAnyPermission, hasAllPermissions } from '@/features';
 
 export function usePermission() {
-    const { user } = useAuthStore();
+    const user = useAppSelector(selectUser);
 
     const authorities = useMemo(() => user?.authorities || [], [user]);
     const role = useMemo(() => user?.role || null, [user]);

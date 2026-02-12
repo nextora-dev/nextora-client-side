@@ -13,7 +13,8 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MapIcon from '@mui/icons-material/Map';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { WelcomeBanner, StatsCard, QuickAccessGrid } from '@/components/widgets';
-import { useAuthStore } from '@/store/auth.store';
+import { useAppSelector } from '@/store';
+import { selectUser } from '@/features/auth/authSlice';
 import type { QuickAction, StatItem } from '@/features/dashboard';
 
 const MotionBox = motion.create(Box);
@@ -54,7 +55,7 @@ const PENDING_TASKS = [
 
 export default function AcademicDashboard() {
     const router = useRouter();
-    const { user } = useAuthStore();
+    const user = useAppSelector(selectUser);
     const handleNavigation = (path: string) => router.push(path);
 
     return (

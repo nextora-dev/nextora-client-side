@@ -1,80 +1,87 @@
 // User Types
-import { RoleType } from '@/constants';
-import { PermissionType } from '@/constants';
+import { STUDENT_SUB_ROLES } from '@/constants';
 
-export interface User {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: RoleType;
-    authorities: PermissionType[];
-    verified: boolean;
-    createdAt?: string;
-    updatedAt?: string;
-    profile?: UserProfile;
+// Main Role Types
+
+export interface StudentRoleSpecificData {
+    studentId: string;
+    address: string;
+    guardianName: string;
+    guardianPhone: string;
+    batch: string;
+    enrollmentDate: string | null;
+
+    studentRoleTypes: STUDENT_SUB_ROLES[];
+    primaryRoleType: STUDENT_SUB_ROLES;
+    studentRoleDisplayName: string;
+
+    dateOfBirth: string;
+    program: string;
+    faculty: string;
+
+    clubMemberData?: ClubMemberData;
+    batchRepData?: BatchRepData;
+    seniorKuppiData?: SeniorKuppiData;
 }
 
-export interface UserProfile {
-    phone?: string;
-    avatar?: string;
-    dateOfBirth?: string;
-    address?: string;
-    bio?: string;
 
-    // Student-specific
-    studentId?: string;
-    batch?: string;
-    program?: string;
-    faculty?: string;
-    guardianName?: string;
-    guardianPhone?: string;
-    studentSubRole?: StudentSubRole;
-
-    // Staff/Lecturer-specific
-    employeeId?: string;
-    department?: string;
-    designation?: string;
-    specialization?: string;
-    qualifications?: string[];
-    officeLocation?: string;
-    joinDate?: string;
-
-    // Admin-specific
-    adminId?: string;
-    assignedDate?: string;
-
-    // Super Admin-specific
-    superAdminId?: string;
-    accessLevel?: string;
+export interface AcademicStaffRoleSpecificData {
+    qualifications: string[];
+    joinDate: string;
+    responsibilities: string | null;
+    officeLocation: string;
+    specialization: string;
+    bio: string;
+    employeeId: string;
+    position: string;
+    designation: string;
+    department: string;
+    availableForMeetings: boolean;
+    faculty: string;
 }
 
-export type StudentSubRole = 'normal' | 'club-member' | 'kuppi-mentor' | 'batch-rep';
-
-export interface UserListItem {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: RoleType;
-    verified: boolean;
-    createdAt: string;
-    lastLoginAt?: string;
+export interface NonAcademicStaffRoleSpecificData {
+    workLocation: string;
+    joinDate: string;
+    shift: string | null;
+    employeeId: string;
+    position: string;
+    department: string;
 }
 
-export interface CreateUserRequest {
-    email: string;
-    firstName: string;
-    lastName: string;
-    password: string;
-    role: RoleType;
-    profile?: Partial<UserProfile>;
+export interface AdminRoleSpecificData {
+    assignedDate: string;
+    permissions: string[];
+    adminId: string;
+    department: string;
 }
 
-export interface UpdateUserRequest {
-    firstName?: string;
-    lastName?: string;
-    role?: RoleType;
-    verified?: boolean;
-    profile?: Partial<UserProfile>;
+export interface SuperAdminRoleSpecificData {
+    assignedDate: string;
+    accessLevel: string;
+    superAdminId: string;
+}
+
+// Student Sub-Role Types
+
+export interface BatchRepData {
+    batchRepElectedDate: string;
+    batchRepSemester: string;
+    batchRepResponsibilities: string;
+    batchRepYear: string;
+}
+
+export interface SeniorKuppiData {
+    kuppiAvailability: string;
+    kuppiSubjects: string[];
+    kuppiSessionsCompleted: number;
+    kuppiRating: number;
+    kuppiExperienceLevel: string;
+}
+
+export interface ClubMemberData {
+    clubPosition: string;
+    clubMembershipId: string;
+    clubName: string;
+    clubJoinDate: string;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -38,9 +38,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { PushNotificationProvider } from '@/contexts/PushNotificationContext';
 import { NotificationBell, NotificationList } from '@/components/notifications';
-import { useAuthStore } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { selectUser, logoutAsync } from '@/features/auth/authSlice';
 import { getNavigationByRole, getBrandingByRole } from '@/features/dashboard';
 import { ROLES } from '@/constants/roles';
+import { useProfile } from '@/hooks/useProfile';
 
 const DRAWER_WIDTH = 256;
 const DRAWER_COLLAPSED_WIDTH = 64;
@@ -62,9 +64,13 @@ export default function DashboardLayout({
     const profileMenuOpen = Boolean(anchorEl);
     const notificationPopoverOpen = Boolean(notificationAnchorEl);
 
-    // Get user from auth store
-    const { user, logout: storeLogout } = useAuthStore();
+    // Get user from Redux store
+    const dispatch = useAppDispatch();
+    const user = useAppSelector(selectUser);
     const userRole = user?.role || ROLES.STUDENT;
+
+    // Get full profile data (includes profile picture)
+    const { profile } = useProfile();
 
     // Get role-based navigation and branding
     const navigationItems = useMemo(() => getNavigationByRole(userRole), [userRole]);
@@ -83,19 +89,50 @@ export default function DashboardLayout({
 
     const handleLogout = async () => {
         handleProfileMenuClose();
-        await storeLogout();
+        await dispatch(logoutAsync());
         router.push('/login');
     };
 
+    // Use profile data if available, fallback to auth user data
+    const getUserDisplayName = () => {
+        // Prefer profile data over auth user data
+        const firstName = profile?.firstName?.trim() || user?.firstName?.trim() || '';
+        const lastName = profile?.lastName?.trim() || user?.lastName?.trim() || '';
+        if (firstName && lastName) return `${firstName} ${lastName}`;
+        if (firstName) return firstName;
+        if (lastName) return lastName;
+        const email = profile?.email || user?.email;
+        if (email) return email.split('@')[0];
+        return 'User';
+    };
+
+    const getUserInitials = () => {
+        const firstName = profile?.firstName?.trim() || user?.firstName?.trim() || '';
+        const lastName = profile?.lastName?.trim() || user?.lastName?.trim() || '';
+        if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
+        if (firstName) return firstName[0].toUpperCase();
+        if (lastName) return lastName[0].toUpperCase();
+        const email = profile?.email || user?.email;
+        if (email) return email[0].toUpperCase();
+        return 'U';
+    };
+
+    const getUserRoleLabel = () => {
+        switch (userRole) {
+            case ROLES.SUPER_ADMIN: return 'Super Admin';
+            case ROLES.ADMIN: return 'Administrator';
+            case ROLES.ACADEMIC_STAFF: return 'Academic Staff';
+            case ROLES.NON_ACADEMIC_STAFF: return 'Non-Academic Staff';
+            default: return 'Student';
+        }
+    };
+
     const userData = {
-        name: user ? `${user.firstName} ${user.lastName}` : 'User',
-        email: user?.email || '',
-        initials: user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'U',
-        role: userRole === ROLES.SUPER_ADMIN ? 'Super Admin'
-            : userRole === ROLES.ADMIN ? 'Administrator'
-            : userRole === ROLES.ACADEMIC_STAFF ? 'Academic Staff'
-            : userRole === ROLES.NON_ACADEMIC_STAFF ? 'Non-Academic Staff'
-            : 'Student',
+        name: getUserDisplayName(),
+        email: profile?.email || user?.email || '',
+        initials: getUserInitials(),
+        role: getUserRoleLabel(),
+        profilePictureUrl: profile?.profilePictureUrl || null,
     };
 
     // Get role-based profile path
@@ -456,6 +493,7 @@ export default function DashboardLayout({
                                     </Typography>
                                 </Box>
                                 <Avatar
+                                    src={userData.profilePictureUrl || undefined}
                                     sx={{
                                         width: { xs: 32, lg: 36 },
                                         height: { xs: 32, lg: 36 },
@@ -470,7 +508,7 @@ export default function DashboardLayout({
                                     }}
                                     onClick={handleProfileMenuOpen}
                                 >
-                                    {userData.initials}
+                                    {!userData.profilePictureUrl && userData.initials}
                                 </Avatar>
                             </Box>
                         </Box>
@@ -489,7 +527,7 @@ export default function DashboardLayout({
                             sx: {
                                 mt: 1,
                                 minWidth: 220,
-                                borderRadius: 2,
+                                borderRadius: 1,
                                 boxShadow: '0 10px 40px rgba(0,0,0,0.12)',
                             },
                         },

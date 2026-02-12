@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { ThemeContextProvider } from '@/contexts/ThemeContext';
+import { ReduxProvider } from '@/providers/ReduxProvider';
 import "./globals.css";
 
 /**
@@ -10,6 +11,8 @@ import "./globals.css";
  * - Provides social sharing metadata
  */
 export const metadata: Metadata = {
+  // Base URL for resolving relative URLs in metadata
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: {
     default: "Nextora LMS",
     template: "%s | Nextora LMS",
@@ -111,11 +114,13 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
       </head>
       <body>
-        <AppRouterCacheProvider>
-          <ThemeContextProvider>
-            {children}
-          </ThemeContextProvider>
-        </AppRouterCacheProvider>
+        <ReduxProvider>
+          <AppRouterCacheProvider>
+            <ThemeContextProvider>
+              {children}
+            </ThemeContextProvider>
+          </AppRouterCacheProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

@@ -2,11 +2,12 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { useAuthStore } from '../store/auth.store';
-import { RoleType, ROLES, ROLE_HIERARCHY } from '../constants/roles';
+import { useAppSelector } from '@/store';
+import { selectUser } from '@/features/auth/authSlice';
+import { RoleType, ROLES, ROLE_HIERARCHY } from '@/constants';
 
 export function useRole() {
-    const { user } = useAuthStore();
+    const user = useAppSelector(selectUser);
 
     const role = useMemo(() => user?.role || null, [user]);
 

@@ -1,20 +1,23 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
-import { useAuthStore } from '@/store/auth.store';
+import { ReactNode, useEffect, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store';
+import { initializeFromTokenAsync, selectIsHydrated } from '@/features/auth/authSlice';
 
 // Re-export types from the centralized location
 export type { AuthUser as User } from '@/features/auth/auth.types';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const initializeFromToken = useAuthStore((state) => state.initializeFromToken);
-    const isHydrated = useAuthStore((state) => state.isHydrated);
+    const dispatch = useAppDispatch();
+    const isHydrated = useAppSelector(selectIsHydrated);
+    const initialized = useRef(false);
 
     useEffect(() => {
-        if (isHydrated) {
-            initializeFromToken();
+        if (isHydrated && !initialized.current) {
+            initialized.current = true;
+            dispatch(initializeFromTokenAsync());
         }
-    }, [isHydrated, initializeFromToken]);
+    }, [isHydrated, dispatch]);
 
     return <>{children}</>;
 }

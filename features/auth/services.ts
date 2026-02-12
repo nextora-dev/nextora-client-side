@@ -9,16 +9,11 @@
 
 import { api, tokenStorage, authEvents, getUserFromToken } from '@/lib';
 import { mapLegacyRole, PermissionType } from '@/constants';
-import type {
+import {
     AuthUser,
-    LoginCredentials,
-    ForgotPasswordData,
-    ResetPasswordData,
-    VerifyEmailData,
-    SendOtpData,
-    VerifyOtpData,
-    VerifyOtpResponse,
-    ResendOtpData,
+    LoginRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 } from '@/features';
 
 // ============================================================================
@@ -26,7 +21,7 @@ import type {
 // ============================================================================
 
 /** API endpoint paths for authentication operations */
-const AUTH_ENDPOINTS = {
+export const AUTH_ENDPOINTS = {
     LOGIN: '/auth/login',
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
@@ -34,10 +29,6 @@ const AUTH_ENDPOINTS = {
     RESET_PASSWORD: '/auth/reset-password',
     VERIFY_EMAIL: '/auth/verify-email',
     RESEND_VERIFICATION: '/auth/resend-verification',
-    ME: '/auth/me',
-    SEND_OTP: '/auth/send-otp',
-    VERIFY_OTP: '/auth/verify-otp',
-    RESEND_OTP: '/auth/resend-otp',
 } as const;
 
 /** Security messages (prevents account enumeration) */
@@ -58,7 +49,8 @@ const SECURITY_MESSAGES = {
 
 const isDev = process.env.NODE_ENV === 'development';
 
-/** Safe debug logging (only in development) */
+//Safe debug logging (only in development)
+
 const debugLog = (message: string, data?: unknown): void => {
     if (isDev) {
         // eslint-disable-next-line no-console
@@ -66,28 +58,49 @@ const debugLog = (message: string, data?: unknown): void => {
     }
 };
 
-/** Normalizes various API response shapes into a consistent format */
+// Normalizes various API response shapes into a consistent format
+
 const normalizeResponse = <T>(response: unknown): T => {
     const level1 = (response && typeof response === 'object') ? response as Record<string, unknown> : {};
     const level2 = (level1.data && typeof level1.data === 'object') ? level1.data as Record<string, unknown> : level1;
     return ((level2.data && typeof level2.data === 'object') ? level2.data : level2) as T;
 };
 
-/** Maps API response to AuthUser object */
-const mapToAuthUser = (data: Record<string, unknown>): AuthUser => ({
-    id: String(data?.userId ?? data?.id ?? ''),
-    email: String(data?.email || (data?.user as Record<string, unknown>)?.email || ''),
-    firstName: String(data?.firstName || (data?.user as Record<string, unknown>)?.firstName || ''),
-    lastName: String(data?.lastName || (data?.user as Record<string, unknown>)?.lastName || ''),
-    role: mapLegacyRole(String(data?.role || (data?.user as Record<string, unknown>)?.role || '')),
-    authorities: (data?.authorities || (data?.user as Record<string, unknown>)?.authorities || []) as PermissionType[],
-    verified: true,
-});
+// Maps API response to AuthUser object
+
+const mapToAuthUser = (data: Record<string, unknown>): AuthUser => {
+    // Handle fullName - split into firstName and lastName if firstName is not directly available
+    const rawFirstName = String(data?.firstName || (data?.user as Record<string, unknown>)?.firstName || '');
+    const rawLastName = String(data?.lastName || (data?.user as Record<string, unknown>)?.lastName || '');
+    const fullName = String(data?.fullName || (data?.user as Record<string, unknown>)?.fullName || '');
+
+    let firstName = rawFirstName;
+    let lastName = rawLastName;
+
+    // If firstName is empty but fullName exists, split fullName
+    if (!firstName && fullName) {
+        const nameParts = fullName.trim().split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+    }
+
+    return {
+        id: String(data?.userId ?? data?.id ?? ''),
+        email: String(data?.email || (data?.user as Record<string, unknown>)?.email || data?.sub || ''),
+        firstName,
+        lastName,
+        role: mapLegacyRole(String(data?.role || (data?.user as Record<string, unknown>)?.role || '')),
+        authorities: (data?.authorities || (data?.user as Record<string, unknown>)?.authorities || []) as PermissionType[]
+    };
+};
 
 // ============================================================================
 // Authentication Services
 // ============================================================================
-export async function login(credentials: LoginCredentials): Promise<AuthUser> {
+
+//login user and store tokens
+
+export async function login(credentials: LoginRequest): Promise<AuthUser> {
     const payload = { ...credentials, role: credentials.role ?? 'ROLE_STUDENT' };
     debugLog('Login attempt', { email: payload.email, role: payload.role });
 
@@ -109,7 +122,8 @@ export async function login(credentials: LoginCredentials): Promise<AuthUser> {
     }
 }
 
-/** Logs out the current user and clears session */
+//logout user and clear tokens
+
 export async function logout(): Promise<void> {
     try {
         await api.post(AUTH_ENDPOINTS.LOGOUT);
@@ -119,7 +133,8 @@ export async function logout(): Promise<void> {
     }
 }
 
-/** Refreshes the access token using refresh token */
+// Refreshes the access token using refresh token
+
 export async function refreshToken(): Promise<string> {
     const currentRefreshToken = tokenStorage.getRefreshToken();
     if (!currentRefreshToken) throw new Error('No refresh token available');
@@ -132,13 +147,8 @@ export async function refreshToken(): Promise<string> {
     return response.accessToken;
 }
 
-/** Fetches current user profile from API */
-export async function getCurrentUser(): Promise<AuthUser> {
-    const response = await api.get<AuthUser>(AUTH_ENDPOINTS.ME);
-    return { ...response, role: mapLegacyRole(response.role as unknown as string) };
-}
+// Retrieves user information from stored JWT token
 
-/** Retrieves user information from stored JWT token */
 export function getUserFromStoredToken(): AuthUser | null {
     const token = tokenStorage.getAccessToken();
     if (!token) return null;
@@ -152,8 +162,7 @@ export function getUserFromStoredToken(): AuthUser | null {
         firstName: tokenUser.firstName,
         lastName: tokenUser.lastName,
         role: mapLegacyRole(tokenUser.role),
-        authorities: tokenUser.authorities as PermissionType[],
-        verified: true,
+        authorities: tokenUser.authorities as PermissionType[]
     };
 }
 
@@ -161,11 +170,9 @@ export function getUserFromStoredToken(): AuthUser | null {
 // Password Recovery Services
 // ============================================================================
 
-/**
- * Initiates password reset flow
- * @security Always returns success to prevent email enumeration attacks
- */
-export async function forgotPassword(data: ForgotPasswordData): Promise<{ message: string; success: boolean }> {
+// forgets user password and sends reset email
+
+export async function forgotPassword(data: ForgotPasswordRequest): Promise<{ message: string; success: boolean }> {
     try {
         const response = await api.post<{ message: string; success?: boolean }>(AUTH_ENDPOINTS.FORGOT_PASSWORD, data);
         return {
@@ -177,8 +184,9 @@ export async function forgotPassword(data: ForgotPasswordData): Promise<{ messag
     }
 }
 
-/** Resets user password with valid reset token */
-export async function resetPassword(data: ResetPasswordData): Promise<{ message: string; success: boolean }> {
+// Resets user password with valid reset token
+
+export async function resetPassword(data: ResetPasswordRequest): Promise<{ message: string; success: boolean }> {
     try {
         const response = await api.post<{ message: string; success?: boolean }>(AUTH_ENDPOINTS.RESET_PASSWORD, {
             token: data.token,
@@ -198,7 +206,8 @@ export async function resetPassword(data: ResetPasswordData): Promise<{ message:
     }
 }
 
-/** Validates a password reset token */
+// Validates a password reset token
+
 export async function validateResetToken(token: string): Promise<{ valid: boolean; message: string }> {
     try {
         const response = await api.post<{ valid?: boolean; message?: string }>(
@@ -214,59 +223,3 @@ export async function validateResetToken(token: string): Promise<{ valid: boolea
     }
 }
 
-// ============================================================================
-// Email Verification Services
-// ============================================================================
-
-/** Verifies user's email with token */
-export async function verifyEmail(data: VerifyEmailData): Promise<{ message: string }> {
-    return api.post(AUTH_ENDPOINTS.VERIFY_EMAIL, data);
-}
-
-/** Resends email verification link */
-export async function resendVerification(email: string): Promise<{ message: string }> {
-    return api.post(AUTH_ENDPOINTS.RESEND_VERIFICATION, { email });
-}
-
-// ============================================================================
-// OTP Services
-// ============================================================================
-
-/**
- * Sends OTP to user's email for password reset
- * @security Always returns success to prevent account enumeration
- */
-export async function sendOtp(data: SendOtpData): Promise<{ message: string; success: boolean }> {
-    try {
-        const response = await api.post<{ message: string; success?: boolean }>(AUTH_ENDPOINTS.SEND_OTP, data);
-        return {
-            message: response.message || SECURITY_MESSAGES.OTP_SENT,
-            success: response.success ?? true,
-        };
-    } catch {
-        return { message: SECURITY_MESSAGES.OTP_SENT, success: true };
-    }
-}
-
-/** Verifies OTP code entered by user */
-export async function verifyOtp(data: VerifyOtpData): Promise<VerifyOtpResponse> {
-    const response = await api.post<VerifyOtpResponse>(AUTH_ENDPOINTS.VERIFY_OTP, data);
-    return {
-        verified: response.verified ?? false,
-        token: response.token || '',
-        message: response.message || (response.verified ? SECURITY_MESSAGES.OTP_VERIFIED : SECURITY_MESSAGES.OTP_INVALID),
-    };
-}
-
-/** Resends OTP to user's email */
-export async function resendOtp(data: ResendOtpData): Promise<{ message: string; success: boolean }> {
-    try {
-        const response = await api.post<{ message: string; success?: boolean }>(AUTH_ENDPOINTS.RESEND_OTP, data);
-        return {
-            message: response.message || SECURITY_MESSAGES.OTP_RESENT,
-            success: response.success ?? true,
-        };
-    } catch {
-        return { message: 'Failed to resend OTP. Please try again.', success: false };
-    }
-}

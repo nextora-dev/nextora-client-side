@@ -15,7 +15,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import PendingIcon from '@mui/icons-material/Pending';
 import { WelcomeBanner, StatsCard, QuickAccessGrid } from '@/components/widgets';
-import { useAuthStore } from '@/store/auth.store';
+import { useAppSelector } from '@/store';
+import { selectUser } from '@/features/auth/authSlice';
 import type { QuickAction, StatItem } from '@/features/dashboard';
 
 const MotionBox = motion.create(Box);
@@ -60,7 +61,7 @@ const getPriorityColor = (p: string): 'error' | 'warning' | 'default' => {
 
 export default function NonAcademicDashboard() {
     const router = useRouter();
-    const { user } = useAuthStore();
+    const user = useAppSelector(selectUser);
     const handleNavigation = (path: string) => router.push(path);
 
     return (
