@@ -1,6 +1,6 @@
 export const STATUS = {
     ACTIVE : 'ACTIVE',
-    Deactivate : 'Deactivate',
+    DEACTIVATE : 'Deactivate',
     SUSPENDED :'SUSPENDED',
     DELETED : 'DELETED',
     PENDING_VERIFICATION : 'PENDING_VERIFICATION',

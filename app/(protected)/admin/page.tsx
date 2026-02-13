@@ -8,6 +8,8 @@ import SchoolIcon from '@mui/icons-material/School';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { useAuth } from '@/hooks/useAuth';
+import {useEffect} from "react";
+import {getAllUsers} from "@/features";
 
 const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -33,6 +35,7 @@ const PENDING_APPROVALS = [
     { title: 'Course: Advanced AI', type: 'Course' },
     { title: 'User: Faculty Request', type: 'User' },
 ];
+
 
 export default function AdminDashboardPage() {
     const { user } = useAuth();
