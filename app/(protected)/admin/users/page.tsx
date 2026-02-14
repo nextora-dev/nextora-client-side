@@ -17,7 +17,6 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import PersonIcon from '@mui/icons-material/Person';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -34,22 +33,28 @@ import EngineeringIcon from '@mui/icons-material/Engineering';
 import { ROLE_LABELS, RoleType } from '@/constants/roles';
 import { FACULTY, FACULTY_LABELS } from '@/constants/faculty';
 import { CreateUserRequest, UpdateUserRequest, User } from '@/features/admin';
-import {
-    createUser,
-    updateUserById,
-    activateUser,
-    deactivateUser,
-} from '@/features/admin/services';
 import { StatusType, STATUS_LABELS } from "@/constants";
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
+    // Thunks
     fetchUsers,
     fetchUserStats,
+    fetchUserById,
+    createUserAsync,
+    updateUserAsync,
+    activateUserAsync,
+    deactivateUserAsync,
+    suspendUserAsync,
+    unlockUserAsync,
+    // Actions
     setSearchQuery as setSearchQueryAction,
     setRoleFilter as setRoleFilterAction,
     setStatusFilter as setStatusFilterAction,
     setCurrentPage,
     setPageSize,
+    clearSelectedUserDetail,
+    clearSuccessMessage,
+    // Selectors
     selectAdminUsers,
     selectAdminTotalUsers,
     selectAdminCurrentPage,
@@ -60,6 +65,15 @@ import {
     selectAdminStats,
     selectAdminIsLoading,
     selectAdminError,
+    selectSelectedUserDetail,
+    selectIsUserDetailLoading,
+    selectIsCreating,
+    selectIsUpdating,
+    selectIsStatusChanging,
+    selectSuccessMessage,
+    selectCreateError,
+    selectUpdateError,
+    selectStatusChangeError,
 } from '@/features/admin';
 
 const MotionBox = motion.create(Box);
@@ -90,6 +104,37 @@ interface UserDisplayItem {
     status: StatusType
 }
 
+// Edit form data interface - includes all editable fields
+interface EditFormData {
+    id?: number;
+    email?: string;
+    role?: RoleType;
+    // Basic fields
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    address?: string;
+    dateOfBirth?: string;
+    // Guardian fields (students)
+    guardianName?: string;
+    guardianPhone?: string;
+    // Club member fields
+    clubName?: string;
+    clubPosition?: string;
+    clubJoinDate?: string;
+    clubMembershipId?: string;
+    // Academic staff fields
+    designation?: string;
+    specialization?: string;
+    officeLocation?: string;
+    bio?: string;
+    availableForMeetings?: boolean;
+    responsibilities?: string;
+    // Non-academic staff fields
+    workLocation?: string;
+    shift?: string;
+}
+
 // Helper to map backend User to display format
 const mapUserToDisplay = (user: User): UserDisplayItem => {
     const nameParts = user.fullName.split(' ');
@@ -102,8 +147,8 @@ const mapUserToDisplay = (user: User): UserDisplayItem => {
         profilePictureUrl: user.profilePictureUrl,
         role: user.role,
         userType: user.userType,
-        active: user.active,
-        status: (user as any).status || (user.active ? 'ACTIVE' : 'DEACTIVATE'),
+        active: user.status === 'ACTIVE',
+        status: user.status,
     };
 };
 
@@ -124,6 +169,21 @@ export default function AdminUsersPage() {
     const userStats = useAppSelector(selectAdminStats);
     const loading = useAppSelector(selectAdminIsLoading);
     const error = useAppSelector(selectAdminError);
+
+    // User detail from Redux
+    const userDetail = useAppSelector(selectSelectedUserDetail);
+    const userDetailLoading = useAppSelector(selectIsUserDetailLoading);
+
+    // Operation loading states from Redux
+    const isCreating = useAppSelector(selectIsCreating);
+    const isUpdating = useAppSelector(selectIsUpdating);
+    const isStatusChanging = useAppSelector(selectIsStatusChanging);
+
+    // Messages from Redux
+    const successMessage = useAppSelector(selectSuccessMessage);
+    const createError = useAppSelector(selectCreateError);
+    const updateError = useAppSelector(selectUpdateError);
+    const statusChangeError = useAppSelector(selectStatusChangeError);
 
     // Map users from store to display format
     const users = useMemo(() => usersFromStore.map(mapUserToDisplay), [usersFromStore]);
@@ -157,14 +217,17 @@ export default function AdminUsersPage() {
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | 'unlock' | null>(null);
+    const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | 'suspend' | 'unlock' | null>(null);
 
-    // Form state
+
+    // Form state for create user
     const [formData, setFormData] = useState<Partial<CreateUserRequest & { id?: number }>>({});
-    const [profilePicture, setProfilePicture] = useState<File | null>(null);
+    // Form state for edit user
+    const [editFormData, setEditFormData] = useState<EditFormData>({});
+    // Original form data to track changes
+    const [originalEditFormData, setOriginalEditFormData] = useState<EditFormData>({});
     const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [submitting, setSubmitting] = useState(false);
 
     // Fetch users and stats on mount and when filters change
     useEffect(() => {
@@ -182,12 +245,41 @@ export default function AdminUsersPage() {
         dispatch(fetchUserStats());
     }, [dispatch]);
 
-    // Show error in snackbar
+    // Handle success messages from Redux
+    useEffect(() => {
+        if (successMessage) {
+            setSnackbar({ open: true, message: successMessage, severity: 'success' });
+            dispatch(clearSuccessMessage());
+            // Refresh data after successful operation
+            dispatch(fetchUsers({ page, size: rowsPerPage, searchQuery, roleFilter, statusFilter }));
+            dispatch(fetchUserStats());
+        }
+    }, [successMessage, dispatch, page, rowsPerPage, searchQuery, roleFilter, statusFilter]);
+
+    // Handle errors from Redux
     useEffect(() => {
         if (error) {
             setSnackbar({ open: true, message: error, severity: 'error' });
         }
     }, [error]);
+
+    useEffect(() => {
+        if (createError) {
+            setSnackbar({ open: true, message: createError, severity: 'error' });
+        }
+    }, [createError]);
+
+    useEffect(() => {
+        if (updateError) {
+            setSnackbar({ open: true, message: updateError, severity: 'error' });
+        }
+    }, [updateError]);
+
+    useEffect(() => {
+        if (statusChangeError) {
+            setSnackbar({ open: true, message: statusChangeError, severity: 'error' });
+        }
+    }, [statusChangeError]);
 
     // Refresh data handler
     const handleRefresh = useCallback(() => {
@@ -207,60 +299,114 @@ export default function AdminUsersPage() {
     };
 
     const handleMenuClose = () => setAnchorEl(null);
-    const handleViewUser = () => { handleMenuClose(); setViewDialogOpen(true); };
+
+    const handleViewUser = () => {
+        handleMenuClose();
+        if (!selectedUser) return;
+
+        setViewDialogOpen(true);
+        dispatch(clearSelectedUserDetail());
+        dispatch(fetchUserById(selectedUser.id));
+    };
 
 const handleEditUser = () => {
         handleMenuClose();
         if (selectedUser) {
-            setFormData({
-                id: selectedUser.id,
-                firstName: selectedUser.firstName,
-                lastName: selectedUser.lastName,
-                email: selectedUser.email,
-                phone: '',
-                role: selectedUser.role
-            });
+            // Clear previous form data first
+            setEditFormData({});
+            setOriginalEditFormData({});
+            setFormErrors({});
+            // Clear previous user detail from Redux
+            dispatch(clearSelectedUserDetail());
+            // Fetch fresh user details
+            dispatch(fetchUserById(selectedUser.id));
             setProfilePicturePreview(selectedUser.profilePictureUrl);
         }
         setEditDialogOpen(true);
     };
 
-    const handleStatusAction = (action: 'activate' | 'deactivate' | 'unlock') => {
+    // Populate edit form when userDetail is loaded
+    useEffect(() => {
+        // Only populate if dialog is open and we have userDetail matching the selected user
+        if (userDetail && editDialogOpen && selectedUser && userDetail.id === selectedUser.id) {
+            const roleSpecificData = userDetail.roleSpecificData;
+
+            const newEditFormData: EditFormData = {
+                id: userDetail.id,
+                email: userDetail.email,
+                role: userDetail.role,
+                firstName: userDetail.firstName,
+                lastName: userDetail.lastName,
+                phone: userDetail.phoneNumber || '',
+            };
+
+            // Student-specific fields
+            if (userDetail.role === 'ROLE_STUDENT' && roleSpecificData && 'studentId' in roleSpecificData) {
+                newEditFormData.address = roleSpecificData.address || '';
+                newEditFormData.dateOfBirth = roleSpecificData.dateOfBirth || '';
+                newEditFormData.guardianName = roleSpecificData.guardianName || '';
+                newEditFormData.guardianPhone = roleSpecificData.guardianPhone || '';
+
+                // Club member data
+                if (roleSpecificData.clubMemberData) {
+                    newEditFormData.clubName = roleSpecificData.clubMemberData.clubName || '';
+                    newEditFormData.clubPosition = roleSpecificData.clubMemberData.clubPosition || '';
+                    newEditFormData.clubJoinDate = roleSpecificData.clubMemberData.clubJoinDate || '';
+                    newEditFormData.clubMembershipId = roleSpecificData.clubMemberData.clubMembershipId || '';
+                }
+            }
+
+            // Academic staff-specific fields
+            if (userDetail.role === 'ROLE_ACADEMIC_STAFF' && roleSpecificData && 'employeeId' in roleSpecificData) {
+                if ('designation' in roleSpecificData) {
+                    newEditFormData.designation = roleSpecificData.designation || '';
+                }
+                if ('specialization' in roleSpecificData) {
+                    newEditFormData.specialization = roleSpecificData.specialization || '';
+                }
+                if ('officeLocation' in roleSpecificData) {
+                    newEditFormData.officeLocation = roleSpecificData.officeLocation || '';
+                }
+            }
+
+            // Non-academic staff-specific fields
+            if (userDetail.role === 'ROLE_NON_ACADEMIC_STAFF' && roleSpecificData && 'employeeId' in roleSpecificData) {
+                if ('workShift' in roleSpecificData) {
+                    newEditFormData.shift = roleSpecificData.workShift || '';
+                }
+            }
+
+            setEditFormData(newEditFormData);
+            setOriginalEditFormData({ ...newEditFormData }); // Save original for comparison
+            setProfilePicturePreview(userDetail.profilePictureUrl);
+        }
+    }, [userDetail, editDialogOpen, selectedUser]);
+
+    const handleStatusAction = (action: 'activate' | 'deactivate' | 'suspend' | 'unlock') => {
         handleMenuClose();
         setConfirmAction(action);
         setConfirmDialogOpen(true);
     };
 
-    const handleConfirmAction = async () => {
+    const handleConfirmAction = () => {
         if (!selectedUser || !confirmAction) return;
-        setSubmitting(true);
-        try {
-            let response;
-            if (confirmAction === 'activate') {
-                response = await activateUser(selectedUser.id);
-            } else if (confirmAction === 'deactivate') {
-                response = await deactivateUser(selectedUser.id);
-            }
 
-            if (response?.success) {
-                setSnackbar({ open: true, message: response.message || `User ${confirmAction}d successfully`, severity: 'success' });
-                setConfirmDialogOpen(false);
-                dispatch(fetchUsers({ page, size: rowsPerPage, searchQuery, roleFilter, statusFilter }));
-                dispatch(fetchUserStats()); // Refresh stats
-            } else {
-                throw new Error(response?.message || `Failed to ${confirmAction} user`);
-            }
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || error?.message || `Failed to ${confirmAction} user`;
-            setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-        } finally {
-            setSubmitting(false);
+        // Dispatch appropriate Redux thunk based on action
+        if (confirmAction === 'activate') {
+            dispatch(activateUserAsync(selectedUser.id));
+        } else if (confirmAction === 'deactivate') {
+            dispatch(deactivateUserAsync(selectedUser.id));
+        } else if (confirmAction === 'suspend') {
+            dispatch(suspendUserAsync(selectedUser.id));
+        } else if (confirmAction === 'unlock') {
+            dispatch(unlockUserAsync(selectedUser.id));
         }
+
+        setConfirmDialogOpen(false);
     };
 
     const handleCreateUser = () => {
         setFormData({ role: 'ROLE_STUDENT' as RoleType });
-        setProfilePicture(null);
         setProfilePicturePreview(null);
         setFormErrors({});
         setCreateDialogOpen(true);
@@ -277,104 +423,110 @@ const handleEditUser = () => {
         return Object.keys(errors).length === 0;
     };
 
-    const handleSubmitCreate = async () => {
+    const handleSubmitCreate = () => {
         if (!validateForm(true)) return;
-        setSubmitting(true);
-        try {
-            // Build create data with all role-specific fields
-            const createData: CreateUserRequest = {
-                firstName: formData.firstName!,
-                lastName: formData.lastName!,
-                email: formData.email!,
-                phone: formData.phone || '',
-                role: formData.role!,
-            };
 
-            // Add role-specific fields
-            if (formData.role === 'ROLE_STUDENT') {
-                createData.studentId = formData.studentId;
-                createData.batch = formData.batch;
-                createData.program = formData.program;
-                createData.faculty = formData.faculty;
-                createData.dateOfBirth = formData.dateOfBirth;
-                createData.address = formData.address;
-            } else if (formData.role === 'ROLE_ACADEMIC_STAFF') {
-                createData.employeeId = formData.employeeId;
-                createData.position = formData.position;
-                createData.designation = formData.designation;
-                createData.department = formData.department;
-                createData.faculty = formData.faculty;
-            } else if (formData.role === 'ROLE_NON_ACADEMIC_STAFF') {
-                createData.employeeId = formData.employeeId;
-                createData.position = formData.position;
-                createData.department = formData.department;
-            }
+        // Build create data with all role-specific fields
+        const createData: CreateUserRequest = {
+            firstName: formData.firstName!,
+            lastName: formData.lastName!,
+            email: formData.email!,
+            phone: formData.phone || '',
+            role: formData.role!,
+        };
 
-            const response = await createUser(createData);
-
-            if (response.success) {
-                setSnackbar({ open: true, message: response.message || 'User created successfully', severity: 'success' });
-                setCreateDialogOpen(false);
-                setFormData({});
-                dispatch(fetchUsers({ page, size: rowsPerPage, searchQuery, roleFilter, statusFilter }));
-                dispatch(fetchUserStats()); // Refresh stats
-            } else {
-                throw new Error(response.message || 'Failed to create user');
-            }
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create user';
-            setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-        } finally {
-            setSubmitting(false);
+        // Add role-specific fields
+        if (formData.role === 'ROLE_STUDENT') {
+            createData.studentId = formData.studentId;
+            createData.batch = formData.batch;
+            createData.program = formData.program;
+            createData.faculty = formData.faculty;
+            createData.dateOfBirth = formData.dateOfBirth;
+            createData.address = formData.address;
+        } else if (formData.role === 'ROLE_ACADEMIC_STAFF') {
+            createData.employeeId = formData.employeeId;
+            createData.position = formData.position;
+            createData.designation = formData.designation;
+            createData.department = formData.department;
+            createData.faculty = formData.faculty;
+        } else if (formData.role === 'ROLE_NON_ACADEMIC_STAFF') {
+            createData.employeeId = formData.employeeId;
+            createData.position = formData.position;
+            createData.department = formData.department;
         }
+
+        dispatch(createUserAsync(createData));
+        setCreateDialogOpen(false);
+        setFormData({});
     };
 
-    const handleSubmitEdit = async () => {
-        if (!validateForm(false) || !formData.id) return;
-        setSubmitting(true);
-        try {
-            const updateData: UpdateUserRequest = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                phoneNumber: formData.phone,
-                role: formData.role,
-                profilePicture: profilePicture || undefined,
-                deleteProfilePicture: !profilePicture && !profilePicturePreview,
-            };
+    const handleSubmitEdit = () => {
+        // Validate edit form
+        const errors: Record<string, string> = {};
+        if (!editFormData.firstName?.trim()) errors.firstName = 'First name is required';
+        if (!editFormData.lastName?.trim()) errors.lastName = 'Last name is required';
+        setFormErrors(errors);
+        if (Object.keys(errors).length > 0 || !editFormData.id) return;
 
-            const response = await updateUserById(formData.id, updateData);
+        // Helper function to check if a field has changed
+        const hasChanged = (key: keyof EditFormData): boolean => {
+            const current = editFormData[key];
+            const original = originalEditFormData[key];
+            // Consider changed if values are different (including empty string vs undefined)
+            return current !== original;
+        };
 
-            if (response.success) {
-                setSnackbar({ open: true, message: response.message || 'User updated successfully', severity: 'success' });
-                setEditDialogOpen(false);
-                setFormData({});
-                setProfilePicture(null);
-                setProfilePicturePreview(null);
-                dispatch(fetchUsers({ page, size: rowsPerPage, searchQuery, roleFilter, statusFilter }));
-            } else {
-                throw new Error(response.message || 'Failed to update user');
-            }
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to update user';
-            setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-        } finally {
-            setSubmitting(false);
+        // Build update data with ONLY changed fields
+        const updateData: UpdateUserRequest = {};
+
+        // Basic fields - only add if changed
+        if (hasChanged('firstName')) updateData.firstName = editFormData.firstName;
+        if (hasChanged('lastName')) updateData.lastName = editFormData.lastName;
+        if (hasChanged('phone')) updateData.phone = editFormData.phone;
+        if (hasChanged('address')) updateData.address = editFormData.address;
+        if (hasChanged('dateOfBirth')) updateData.dateOfBirth = editFormData.dateOfBirth;
+
+        // Student-specific fields - only add if changed
+        if (editFormData.role === 'ROLE_STUDENT') {
+            if (hasChanged('guardianName')) updateData.guardianName = editFormData.guardianName;
+            if (hasChanged('guardianPhone')) updateData.guardianPhone = editFormData.guardianPhone;
+            // Club member fields
+            if (hasChanged('clubName')) updateData.clubName = editFormData.clubName;
+            if (hasChanged('clubPosition')) updateData.clubPosition = editFormData.clubPosition;
+            if (hasChanged('clubJoinDate')) updateData.clubJoinDate = editFormData.clubJoinDate;
+            if (hasChanged('clubMembershipId')) updateData.clubMembershipId = editFormData.clubMembershipId;
         }
+
+        // Academic staff-specific fields - only add if changed
+        if (editFormData.role === 'ROLE_ACADEMIC_STAFF') {
+            if (hasChanged('designation')) updateData.designation = editFormData.designation;
+            if (hasChanged('specialization')) updateData.specialization = editFormData.specialization;
+            if (hasChanged('officeLocation')) updateData.officeLocation = editFormData.officeLocation;
+            if (hasChanged('bio')) updateData.bio = editFormData.bio;
+            if (hasChanged('availableForMeetings')) updateData.availableForMeetings = editFormData.availableForMeetings;
+            if (hasChanged('responsibilities')) updateData.responsibilities = editFormData.responsibilities;
+        }
+
+        // Non-academic staff-specific fields - only add if changed
+        if (editFormData.role === 'ROLE_NON_ACADEMIC_STAFF') {
+            if (hasChanged('workLocation')) updateData.workLocation = editFormData.workLocation;
+            if (hasChanged('shift')) updateData.shift = editFormData.shift;
+        }
+
+        // Only submit if there are changes
+        if (Object.keys(updateData).length === 0) {
+            setSnackbar({ open: true, message: 'No changes to save', severity: 'info' });
+            setEditDialogOpen(false);
+            return;
+        }
+
+        dispatch(updateUserAsync({ id: editFormData.id, data: updateData }));
+        setEditDialogOpen(false);
+        setEditFormData({});
+        setOriginalEditFormData({});
+        setProfilePicturePreview(null);
     };
 
-    const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                setSnackbar({ open: true, message: 'Image must be less than 5MB', severity: 'error' });
-                return;
-            }
-            setProfilePicture(file);
-            const reader = new FileReader();
-            reader.onloadend = () => setProfilePicturePreview(reader.result as string);
-            reader.readAsDataURL(file);
-        }
-    };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -575,7 +727,7 @@ const handleEditUser = () => {
                                 <Select value={statusFilter} label="Status" onChange={(e) => dispatch(setStatusFilterAction(e.target.value as StatusType | ''))}>
                                     <MenuItem value="">All Status</MenuItem>
                                     <MenuItem value="ACTIVE">Active</MenuItem>
-                                    <MenuItem value="DEACTIVATE">Deactivate</MenuItem>
+                                    <MenuItem value="DEACTIVATE">Deactivated</MenuItem>
                                     <MenuItem value="SUSPENDED">Suspended</MenuItem>
                                     <MenuItem value="DELETED">Deleted</MenuItem>
                                     <MenuItem value="PASSWORD_CHANGE_REQUIRED">Password Change</MenuItem>
@@ -655,7 +807,7 @@ const handleEditUser = () => {
                                                 </Stack>
 
                                                 {/* Chips Row */}
-                                                <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 0.5 }}>
+                                                <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" sx={{ gap: 0.5 }}>
                                                     <Chip
                                                         label={ROLE_LABELS[user.role] || user.role}
                                                         size="small"
@@ -736,18 +888,20 @@ const handleEditUser = () => {
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Chip
-                                                        icon={getStatusIcon(user.status) || undefined}
-                                                        label={STATUS_LABELS[user.status] || user.status}
-                                                        size="small"
-                                                        sx={{
-                                                            bgcolor: alpha(getStatusColor(user.status), 0.1),
-                                                            color: getStatusColor(user.status),
-                                                            fontWeight: 500,
-                                                            fontSize: { sm: '0.7rem', md: '0.75rem' },
-                                                            '& .MuiChip-icon': { color: 'inherit' }
-                                                        }}
-                                                    />
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <Chip
+                                                            icon={getStatusIcon(user.status) || undefined}
+                                                            label={STATUS_LABELS[user.status] || user.status}
+                                                            size="small"
+                                                            sx={{
+                                                                bgcolor: alpha(getStatusColor(user.status), 0.1),
+                                                                color: getStatusColor(user.status),
+                                                                fontWeight: 500,
+                                                                fontSize: { sm: '0.7rem', md: '0.75rem' },
+                                                                '& .MuiChip-icon': { color: 'inherit' }
+                                                            }}
+                                                        />
+                                                    </Stack>
                                                 </TableCell>
                                                 <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                                                     <Typography variant="body2" color="text.secondary">ID: {user.id}</Typography>
@@ -786,8 +940,30 @@ const handleEditUser = () => {
                 <MenuItem onClick={handleViewUser}><VisibilityIcon sx={{ mr: 1.5, fontSize: 20 }} />View Details</MenuItem>
                 <MenuItem onClick={handleEditUser}><EditIcon sx={{ mr: 1.5, fontSize: 20 }} />Edit User</MenuItem>
                 <Divider />
-                {!selectedUser?.active && <MenuItem onClick={() => handleStatusAction('activate')} sx={{ color: 'success.main' }}><PersonIcon sx={{ mr: 1.5, fontSize: 20 }} />Activate</MenuItem>}
-                {selectedUser?.active && <MenuItem onClick={() => handleStatusAction('deactivate')} sx={{ color: 'warning.main' }}><PersonOffIcon sx={{ mr: 1.5, fontSize: 20 }} />Deactivate</MenuItem>}
+                {/* Activate - show when user is deactivated */}
+                {selectedUser?.status === 'DEACTIVATED' && (
+                    <MenuItem onClick={() => handleStatusAction('activate')} sx={{ color: 'success.main' }}>
+                        <PersonIcon sx={{ mr: 1.5, fontSize: 20 }} />Activate
+                    </MenuItem>
+                )}
+                {/* Deactivate - show when user is active */}
+                {selectedUser?.status === 'ACTIVE' && (
+                    <MenuItem onClick={() => handleStatusAction('deactivate')} sx={{ color: 'warning.main' }}>
+                        <PersonOffIcon sx={{ mr: 1.5, fontSize: 20 }} />Deactivate
+                    </MenuItem>
+                )}
+                {/* Suspend - show when user is active */}
+                {selectedUser?.status === 'ACTIVE' && (
+                    <MenuItem onClick={() => handleStatusAction('suspend')} sx={{ color: 'error.main' }}>
+                        <BlockIcon sx={{ mr: 1.5, fontSize: 20 }} />Suspend
+                    </MenuItem>
+                )}
+                {/* Unlock - show when user is suspended */}
+                {selectedUser?.status === 'SUSPENDED' && (
+                    <MenuItem onClick={() => handleStatusAction('unlock')} sx={{ color: 'info.main' }}>
+                        <LockIcon sx={{ mr: 1.5, fontSize: 20 }} />Unlock
+                    </MenuItem>
+                )}
             </Menu>
 
             {/* Create User Dialog */}
@@ -1059,8 +1235,8 @@ const handleEditUser = () => {
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5 }}>
                     <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-                    <Button variant="contained" onClick={handleSubmitCreate} disabled={submitting}>
-                        {submitting ? <CircularProgress size={20} /> : 'Create User'}
+                    <Button variant="contained" onClick={handleSubmitCreate} disabled={isCreating}>
+                        {isCreating ? <CircularProgress size={20} /> : 'Create User'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -1068,8 +1244,8 @@ const handleEditUser = () => {
             {/* Edit User Dialog */}
             <Dialog
                 open={editDialogOpen}
-                onClose={() => setEditDialogOpen(false)}
-                maxWidth="sm"
+                onClose={() => { setEditDialogOpen(false); setEditFormData({}); }}
+                maxWidth="md"
                 fullWidth
                 fullScreen={isMobile}
                 PaperProps={{
@@ -1082,30 +1258,277 @@ const handleEditUser = () => {
                 <DialogTitle sx={{ pb: 1, pt: { xs: 2, sm: 1 } }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                         <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>Edit User</Typography>
-                        <IconButton onClick={() => setEditDialogOpen(false)} size="small"><CloseIcon /></IconButton>
+                        <IconButton onClick={() => { setEditDialogOpen(false); setEditFormData({}); }} size="small"><CloseIcon /></IconButton>
                     </Stack>
                 </DialogTitle>
                 <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
-                    <Stack spacing={{ xs: 2, sm: 3 }} sx={{ pt: 1 }}>
-                        <Box sx={{ textAlign: 'center' }}>
-                            <Avatar src={profilePicturePreview || undefined} sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mx: 'auto', mb: 2, bgcolor: theme.palette.primary.main, fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formData.firstName?.[0]}{formData.lastName?.[0]}</Avatar>
-                            <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
-                                <Button variant="outlined" component="label" startIcon={<CloudUploadIcon />} size="small">Upload<input type="file" hidden accept="image/*" onChange={handleProfilePictureChange} /></Button>
-                                {profilePicturePreview && <Button variant="outlined" color="error" startIcon={<DeleteIcon />} size="small" onClick={() => { setProfilePicture(null); setProfilePicturePreview(null); }}>Remove</Button>}
-                            </Stack>
+                    {userDetailLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                            <CircularProgress />
                         </Box>
-                        <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                            <Grid size={{ xs: 12, sm: 6 }}><TextField label="First Name" fullWidth size={isMobile ? 'small' : 'medium'} value={formData.firstName || ''} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} error={!!formErrors.firstName} helperText={formErrors.firstName} /></Grid>
-                            <Grid size={{ xs: 12, sm: 6 }}><TextField label="Last Name" fullWidth size={isMobile ? 'small' : 'medium'} value={formData.lastName || ''} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} error={!!formErrors.lastName} helperText={formErrors.lastName} /></Grid>
-                        </Grid>
-                        <TextField label="Email" fullWidth size={isMobile ? 'small' : 'medium'} value={formData.email || ''} disabled helperText="Email cannot be changed" />
-                        <TextField label="Phone Number" fullWidth size={isMobile ? 'small' : 'medium'} value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-                        <FormControl fullWidth size={isMobile ? 'small' : 'medium'}><InputLabel>Role</InputLabel><Select value={formData.role || ''} label="Role" onChange={(e) => setFormData({ ...formData, role: e.target.value as RoleType })}>{Object.entries(ROLE_LABELS).map(([value, label]) => (<MenuItem key={value} value={value}>{label}</MenuItem>))}</Select></FormControl>
-                    </Stack>
+                    ) : (
+                        <Stack spacing={{ xs: 2, sm: 3 }} sx={{ pt: 1 }}>
+                            {/* User Avatar - Read Only */}
+                            <Box sx={{ textAlign: 'center' }}>
+                                <Avatar
+                                    src={profilePicturePreview || undefined}
+                                    sx={{
+                                        width: { xs: 80, sm: 100 },
+                                        height: { xs: 80, sm: 100 },
+                                        mx: 'auto',
+                                        mb: 2,
+                                        bgcolor: ROLE_COLORS[editFormData.role || ''] || theme.palette.primary.main,
+                                        fontSize: { xs: '1.5rem', sm: '2rem' }
+                                    }}
+                                >
+                                    {editFormData.firstName?.[0]}{editFormData.lastName?.[0]}
+                                </Avatar>
+                                <Typography variant="caption" color="text.secondary">
+                                    Profile picture can only be changed by the user
+                                </Typography>
+                            </Box>
+
+                            <Divider />
+
+                            {/* Basic Information */}
+                            <Typography variant="subtitle2" color="text.secondary">Basic Information</Typography>
+                            <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label="First Name"
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        value={editFormData.firstName || ''}
+                                        onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                                        error={!!formErrors.firstName}
+                                        helperText={formErrors.firstName}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label="Last Name"
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        value={editFormData.lastName || ''}
+                                        onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                                        error={!!formErrors.lastName}
+                                        helperText={formErrors.lastName}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label="Email"
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        value={editFormData.email || ''}
+                                        disabled
+                                        helperText="Email cannot be changed"
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label="Phone Number"
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        value={editFormData.phone || ''}
+                                        onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                        placeholder="e.g., 0771234567"
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label="Address"
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        value={editFormData.address || ''}
+                                        onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        label="Date of Birth"
+                                        type="date"
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        value={editFormData.dateOfBirth || ''}
+                                        onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                </Grid>
+                            </Grid>
+
+                            {/* Student-specific fields */}
+                            {editFormData.role === 'ROLE_STUDENT' && (
+                                <>
+                                    <Divider />
+                                    <Typography variant="subtitle2" color="text.secondary">Guardian Information</Typography>
+                                    <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Guardian Name"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.guardianName || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, guardianName: e.target.value })}
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Guardian Phone"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.guardianPhone || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, guardianPhone: e.target.value })}
+                                            />
+                                        </Grid>
+                                    </Grid>
+
+                                    {/* Club Member Fields */}
+                                    {editFormData.clubName && (
+                                        <>
+                                            <Typography variant="subtitle2" color="text.secondary">Club Membership</Typography>
+                                            <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <TextField
+                                                        label="Club Name"
+                                                        fullWidth
+                                                        size={isMobile ? 'small' : 'medium'}
+                                                        value={editFormData.clubName || ''}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, clubName: e.target.value })}
+                                                    />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <TextField
+                                                        label="Club Position"
+                                                        fullWidth
+                                                        size={isMobile ? 'small' : 'medium'}
+                                                        value={editFormData.clubPosition || ''}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, clubPosition: e.target.value })}
+                                                    />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <TextField
+                                                        label="Club Membership ID"
+                                                        fullWidth
+                                                        size={isMobile ? 'small' : 'medium'}
+                                                        value={editFormData.clubMembershipId || ''}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, clubMembershipId: e.target.value })}
+                                                    />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, sm: 6 }}>
+                                                    <TextField
+                                                        label="Club Join Date"
+                                                        type="date"
+                                                        fullWidth
+                                                        size={isMobile ? 'small' : 'medium'}
+                                                        value={editFormData.clubJoinDate || ''}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, clubJoinDate: e.target.value })}
+                                                        InputLabelProps={{ shrink: true }}
+                                                    />
+                                                </Grid>
+                                            </Grid>
+                                        </>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Academic Staff-specific fields */}
+                            {editFormData.role === 'ROLE_ACADEMIC_STAFF' && (
+                                <>
+                                    <Divider />
+                                    <Typography variant="subtitle2" color="text.secondary">Academic Information</Typography>
+                                    <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Designation"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.designation || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, designation: e.target.value })}
+                                                placeholder="e.g., Senior Lecturer"
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Specialization"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.specialization || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, specialization: e.target.value })}
+                                                placeholder="e.g., Artificial Intelligence"
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Office Location"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.officeLocation || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, officeLocation: e.target.value })}
+                                                placeholder="e.g., Room 101"
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Responsibilities"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.responsibilities || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, responsibilities: e.target.value })}
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12 }}>
+                                            <TextField
+                                                label="Bio"
+                                                fullWidth
+                                                multiline
+                                                rows={3}
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.bio || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })}
+                                            />
+                                        </Grid>
+                                    </Grid>
+                                </>
+                            )}
+
+                            {/* Non-Academic Staff-specific fields */}
+                            {editFormData.role === 'ROLE_NON_ACADEMIC_STAFF' && (
+                                <>
+                                    <Divider />
+                                    <Typography variant="subtitle2" color="text.secondary">Work Information</Typography>
+                                    <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Work Location"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.workLocation || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, workLocation: e.target.value })}
+                                                placeholder="e.g., Main Building"
+                                            />
+                                        </Grid>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                            <TextField
+                                                label="Shift"
+                                                fullWidth
+                                                size={isMobile ? 'small' : 'medium'}
+                                                value={editFormData.shift || ''}
+                                                onChange={(e) => setEditFormData({ ...editFormData, shift: e.target.value })}
+                                                placeholder="e.g., Day Shift"
+                                            />
+                                        </Grid>
+                                    </Grid>
+                                </>
+                            )}
+                        </Stack>
+                    )}
                 </DialogContent>
                 <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                    <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-                    <Button variant="contained" onClick={handleSubmitEdit} disabled={submitting}>{submitting ? <CircularProgress size={20} /> : 'Save Changes'}</Button>
+                    <Button onClick={() => { setEditDialogOpen(false); setEditFormData({}); }}>Cancel</Button>
+                    <Button variant="contained" onClick={handleSubmitEdit} disabled={isUpdating || userDetailLoading}>
+                        {isUpdating ? <CircularProgress size={20} /> : 'Save Changes'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -1113,7 +1536,7 @@ const handleEditUser = () => {
             <Dialog
                 open={viewDialogOpen}
                 onClose={() => setViewDialogOpen(false)}
-                maxWidth="sm"
+                maxWidth="md"
                 fullWidth
                 fullScreen={isMobile}
                 PaperProps={{
@@ -1130,26 +1553,258 @@ const handleEditUser = () => {
                     </Stack>
                 </DialogTitle>
                 <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
-                    {selectedUser && (
+                    {userDetailLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : userDetail ? (
                         <Stack spacing={{ xs: 2, sm: 3 }} sx={{ pt: 1 }}>
+                            {/* User Header */}
                             <Box sx={{ textAlign: 'center' }}>
-                                <Avatar src={selectedUser.profilePictureUrl || undefined} sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mx: 'auto', mb: 2, bgcolor: ROLE_COLORS[selectedUser.role] || theme.palette.primary.main, fontSize: { xs: '1.5rem', sm: '2rem' } }}>{selectedUser.firstName?.[0] || ''}{selectedUser.lastName?.[0] || ''}</Avatar>
-                                <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>{selectedUser.fullName}</Typography>
-                                <Chip label={ROLE_LABELS[selectedUser.role]} size="small" sx={{ mt: 1, bgcolor: alpha(ROLE_COLORS[selectedUser.role], 0.1), color: ROLE_COLORS[selectedUser.role] }} />
+                                <Avatar
+                                    src={userDetail.profilePictureUrl || undefined}
+                                    sx={{
+                                        width: { xs: 80, sm: 100 },
+                                        height: { xs: 80, sm: 100 },
+                                        mx: 'auto',
+                                        mb: 2,
+                                        bgcolor: ROLE_COLORS[userDetail.role] || theme.palette.primary.main,
+                                        fontSize: { xs: '1.5rem', sm: '2rem' }
+                                    }}
+                                >
+                                    {userDetail.firstName?.[0] || ''}{userDetail.lastName?.[0] || ''}
+                                </Avatar>
+                                <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                                    {userDetail.fullName}
+                                </Typography>
+                                <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 1 }}>
+                                    <Chip
+                                        label={ROLE_LABELS[userDetail.role]}
+                                        size="small"
+                                        sx={{ bgcolor: alpha(ROLE_COLORS[userDetail.role], 0.1), color: ROLE_COLORS[userDetail.role] }}
+                                    />
+                                    <Chip
+                                        icon={getStatusIcon(userDetail.status) || undefined}
+                                        label={STATUS_LABELS[userDetail.status] || userDetail.status}
+                                        size="small"
+                                        sx={{ bgcolor: alpha(getStatusColor(userDetail.status), 0.1), color: getStatusColor(userDetail.status), '& .MuiChip-icon': { color: 'inherit' } }}
+                                    />
+                                </Stack>
                             </Box>
+
                             <Divider />
-                            <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><EmailIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} /><Box><Typography variant="caption" color="text.secondary">Email</Typography><Typography variant="body2" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, wordBreak: 'break-all' }}>{selectedUser.email}</Typography></Box></Stack></Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><BadgeIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} /><Box><Typography variant="caption" color="text.secondary">User Type</Typography><Typography variant="body2">{selectedUser.userType}</Typography></Box></Stack></Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><BadgeIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} /><Box><Typography variant="caption" color="text.secondary">Status</Typography><Chip icon={getStatusIcon(selectedUser.status) || undefined} label={STATUS_LABELS[selectedUser.status] || selectedUser.status} size="small" sx={{ bgcolor: alpha(getStatusColor(selectedUser.status), 0.1), color: getStatusColor(selectedUser.status) }} /></Box></Stack></Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}><Box><Typography variant="caption" color="text.secondary">User ID</Typography><Typography variant="body2">{selectedUser.id}</Typography></Box></Grid>
-                            </Grid>
+
+                            {/* Basic Information */}
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Basic Information</Typography>
+                                <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
+                                            <EmailIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} />
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">Email</Typography>
+                                                <Typography variant="body2" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, wordBreak: 'break-all' }}>{userDetail.email}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
+                                            <PhoneIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} />
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">Phone Number</Typography>
+                                                <Typography variant="body2">{userDetail.phoneNumber || 'Not provided'}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
+                                            <BadgeIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} />
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">User ID</Typography>
+                                                <Typography variant="body2">{userDetail.id}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
+                                            <BadgeIcon sx={{ color: 'text.secondary', fontSize: { xs: 20, sm: 24 } }} />
+                                            <Box>
+                                                <Typography variant="caption" color="text.secondary">User Type</Typography>
+                                                <Typography variant="body2">{userDetail.userType}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+
+                            {/* Role-Specific Information */}
+                            {userDetail.roleSpecificData && (
+                                <>
+                                    <Divider />
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
+                                            {userDetail.role === 'ROLE_STUDENT' && 'Student Information'}
+                                            {userDetail.role === 'ROLE_ACADEMIC_STAFF' && 'Academic Staff Information'}
+                                            {userDetail.role === 'ROLE_NON_ACADEMIC_STAFF' && 'Non-Academic Staff Information'}
+                                            {(userDetail.role === 'ROLE_ADMIN' || userDetail.role === 'ROLE_SUPER_ADMIN') && 'Admin Information'}
+                                        </Typography>
+                                        <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                            {/* Student-specific fields */}
+                                            {userDetail.role === 'ROLE_STUDENT' && 'studentId' in userDetail.roleSpecificData && (
+                                                <>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Student ID</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.studentId}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Program</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.program || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Faculty</Typography>
+                                                        <Typography variant="body2">{FACULTY_LABELS[userDetail.roleSpecificData.faculty as keyof typeof FACULTY_LABELS] || userDetail.roleSpecificData.faculty || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Batch</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.batch || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Date of Birth</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.dateOfBirth || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Address</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.address || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    {userDetail.roleSpecificData.guardianName && (
+                                                        <>
+                                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                                <Typography variant="caption" color="text.secondary">Guardian Name</Typography>
+                                                                <Typography variant="body2">{userDetail.roleSpecificData.guardianName}</Typography>
+                                                            </Grid>
+                                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                                <Typography variant="caption" color="text.secondary">Guardian Phone</Typography>
+                                                                <Typography variant="body2">{userDetail.roleSpecificData.guardianPhone || 'N/A'}</Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
+                                                    {userDetail.roleSpecificData.studentRoleDisplayName && (
+                                                        <Grid size={{ xs: 12 }}>
+                                                            <Typography variant="caption" color="text.secondary">Student Role</Typography>
+                                                            <Typography variant="body2">{userDetail.roleSpecificData.studentRoleDisplayName}</Typography>
+                                                        </Grid>
+                                                    )}
+                                                    {/* Club Member Data */}
+                                                    {userDetail.roleSpecificData.clubMemberData && (
+                                                        <>
+                                                            <Grid size={{ xs: 12 }}>
+                                                                <Divider sx={{ my: 1 }} />
+                                                                <Typography variant="caption" color="primary" fontWeight={600}>Club Membership</Typography>
+                                                            </Grid>
+                                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                                <Typography variant="caption" color="text.secondary">Club Name</Typography>
+                                                                <Typography variant="body2">{userDetail.roleSpecificData.clubMemberData.clubName}</Typography>
+                                                            </Grid>
+                                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                                <Typography variant="caption" color="text.secondary">Position</Typography>
+                                                                <Typography variant="body2">{userDetail.roleSpecificData.clubMemberData.clubPosition}</Typography>
+                                                            </Grid>
+                                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                                <Typography variant="caption" color="text.secondary">Membership ID</Typography>
+                                                                <Typography variant="body2">{userDetail.roleSpecificData.clubMemberData.clubMembershipId}</Typography>
+                                                            </Grid>
+                                                            <Grid size={{ xs: 12, sm: 6 }}>
+                                                                <Typography variant="caption" color="text.secondary">Join Date</Typography>
+                                                                <Typography variant="body2">{userDetail.roleSpecificData.clubMemberData.clubJoinDate}</Typography>
+                                                            </Grid>
+                                                        </>
+                                                    )}
+                                                </>
+                                            )}
+
+                                            {/* Academic Staff-specific fields */}
+                                            {userDetail.role === 'ROLE_ACADEMIC_STAFF' && 'employeeId' in userDetail.roleSpecificData && (
+                                                <>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Employee ID</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.employeeId}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Department</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.department || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    {'faculty' in userDetail.roleSpecificData && (
+                                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                                            <Typography variant="caption" color="text.secondary">Faculty</Typography>
+                                                            <Typography variant="body2">{FACULTY_LABELS[userDetail.roleSpecificData.faculty as keyof typeof FACULTY_LABELS] || userDetail.roleSpecificData.faculty || 'N/A'}</Typography>
+                                                        </Grid>
+                                                    )}
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Position</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.position || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    {'designation' in userDetail.roleSpecificData && (
+                                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                                            <Typography variant="caption" color="text.secondary">Designation</Typography>
+                                                            <Typography variant="body2">{userDetail.roleSpecificData.designation || 'N/A'}</Typography>
+                                                        </Grid>
+                                                    )}
+                                                    {'specialization' in userDetail.roleSpecificData && userDetail.roleSpecificData.specialization && (
+                                                        <Grid size={{ xs: 12, sm: 6 }}>
+                                                            <Typography variant="caption" color="text.secondary">Specialization</Typography>
+                                                            <Typography variant="body2">{userDetail.roleSpecificData.specialization}</Typography>
+                                                        </Grid>
+                                                    )}
+                                                </>
+                                            )}
+
+                                            {/* Non-Academic Staff-specific fields */}
+                                            {userDetail.role === 'ROLE_NON_ACADEMIC_STAFF' && 'employeeId' in userDetail.roleSpecificData && (
+                                                <>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Employee ID</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.employeeId}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Department</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.department || 'N/A'}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                                        <Typography variant="caption" color="text.secondary">Position</Typography>
+                                                        <Typography variant="body2">{userDetail.roleSpecificData.position || 'N/A'}</Typography>
+                                                    </Grid>
+                                                </>
+                                            )}
+                                        </Grid>
+                                    </Box>
+                                </>
+                            )}
+
+                            {/* Timestamps */}
+                            <Divider />
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Account Information</Typography>
+                                <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Typography variant="caption" color="text.secondary">Created At</Typography>
+                                        <Typography variant="body2">{new Date(userDetail.createdAt).toLocaleString()}</Typography>
+                                    </Grid>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
+                                        <Typography variant="caption" color="text.secondary">Last Updated</Typography>
+                                        <Typography variant="body2">{new Date(userDetail.updatedAt).toLocaleString()}</Typography>
+                                    </Grid>
+                                </Grid>
+                            </Box>
                         </Stack>
+                    ) : (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                            <Typography color="text.secondary">Failed to load user details</Typography>
+                        </Box>
                     )}
                 </DialogContent>
                 <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
                     <Button onClick={() => setViewDialogOpen(false)} fullWidth={isMobile}>Close</Button>
-                    <Button variant="contained" onClick={() => { setViewDialogOpen(false); handleEditUser(); }} fullWidth={isMobile}>Edit User</Button>
+                    <Button variant="contained" onClick={() => { setViewDialogOpen(false); handleEditUser(); }} fullWidth={isMobile} disabled={!userDetail}>Edit User</Button>
                 </DialogActions>
             </Dialog>
 
@@ -1163,16 +1818,31 @@ const handleEditUser = () => {
                     sx: { borderRadius: 2, m: { xs: 2, sm: 2 } }
                 }}
             >
-                <DialogTitle sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>{confirmAction === 'activate' && 'Activate User'}{confirmAction === 'deactivate' && 'Deactivate User'}</DialogTitle>
+                <DialogTitle sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                    {confirmAction === 'activate' && 'Activate User'}
+                    {confirmAction === 'deactivate' && 'Deactivate User'}
+                    {confirmAction === 'suspend' && 'Suspend User'}
+                    {confirmAction === 'unlock' && 'Unlock User'}
+                </DialogTitle>
                 <DialogContent>
                     <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
                         {confirmAction === 'activate' && `Are you sure you want to activate ${selectedUser?.fullName}'s account?`}
                         {confirmAction === 'deactivate' && `Are you sure you want to deactivate ${selectedUser?.fullName}'s account? They will no longer be able to log in.`}
+                        {confirmAction === 'suspend' && `Are you sure you want to suspend ${selectedUser?.fullName}'s account? This will immediately block their access.`}
+                        {confirmAction === 'unlock' && `Are you sure you want to unlock ${selectedUser?.fullName}'s account? They will be able to log in again.`}
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
                     <Button onClick={() => setConfirmDialogOpen(false)} fullWidth={isMobile}>Cancel</Button>
-                    <Button variant="contained" color={confirmAction === 'deactivate' ? 'warning' : 'success'} onClick={handleConfirmAction} disabled={submitting} fullWidth={isMobile}>{submitting ? <CircularProgress size={20} /> : 'Confirm'}</Button>
+                    <Button
+                        variant="contained"
+                        color={confirmAction === 'deactivate' || confirmAction === 'suspend' ? 'error' : 'success'}
+                        onClick={handleConfirmAction}
+                        disabled={isStatusChanging}
+                        fullWidth={isMobile}
+                    >
+                        {isStatusChanging ? <CircularProgress size={20} /> : 'Confirm'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 

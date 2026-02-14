@@ -145,7 +145,21 @@ export default function DashboardLayout({
         return subPath ? `${basePath}/profile/${subPath}` : `${basePath}/profile`;
     };
 
-    const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
+    // Check if a nav item is active
+    // For dashboard paths (root paths like /admin, /student), only exact match
+    // For other paths, allow prefix matching for nested routes
+    const isActive = (path: string) => {
+        // Dashboard paths that should only match exactly
+        const dashboardPaths = ['/admin', '/student', '/academic', '/non-academic', '/super-admin'];
+
+        // If it's a dashboard/root path, only match exactly
+        if (dashboardPaths.includes(path)) {
+            return pathname === path;
+        }
+
+        // For other paths, allow prefix matching for nested routes
+        return pathname === path || pathname.startsWith(path + '/');
+    };
 
     const drawer = (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', bgcolor: 'background.paper' }}>

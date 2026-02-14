@@ -7,12 +7,13 @@ import {
     CreateUserRequest,
     CreateUserResponse,
     UpdateUserRequest,
+    UpdateUserResponse,
     UserFilterParams,
     ActionResponse,
-    User,
     SearchUsersParams,
     FilterUsersParams,
     UserStatsResponse,
+    UserDetailResponse,
 } from '@/features';
 
 const ADMIN_USER_ENDPOINTS = {
@@ -20,19 +21,12 @@ const ADMIN_USER_ENDPOINTS = {
     USER_BY_ID: (id: number) => `/admin/user/${id}`,
     ACTIVATE_USER: (id: number) => `/admin/user/${id}/activate`,
     DEACTIVATE_USER: (id: number) => `/admin/user/${id}/deactivate`,
+    SUSPENDED_USER: (id: number) => `/admin/user/${id}/suspend`,
     UNLOCK_USER: (id: number) => `/admin/user/${id}/unlock`,
     SEARCH_USERS: '/admin/user/search',
     FILTER_USERS: '/admin/user/filter',
     USER_STATS: '/admin/user/stats',
 };
-
-// Response type for single user operations
-interface UserResponse {
-    success: boolean;
-    message: string;
-    data: User;
-    timestamp: string;
-}
 
 // Get all users with pagination
 export async function getAllUsers(params: UserFilterParams = {}): Promise<AllUsersResponse> {
@@ -46,9 +40,9 @@ export async function getAllUsers(params: UserFilterParams = {}): Promise<AllUse
     return response.data;
 }
 
-// Get user by ID
-export async function getUserById(id: number): Promise<UserResponse> {
-    const response = await apiClient.get<UserResponse>(ADMIN_USER_ENDPOINTS.USER_BY_ID(id));
+// Get user by ID with full details
+export async function getUserById(id: number): Promise<UserDetailResponse> {
+    const response = await apiClient.get<UserDetailResponse>(ADMIN_USER_ENDPOINTS.USER_BY_ID(id));
     return response.data;
 }
 
@@ -58,36 +52,47 @@ export async function createUser(data: CreateUserRequest): Promise<CreateUserRes
     return response.data;
 }
 
-// Update user by ID with optional profile picture
-export async function updateUserById(id: number, data: UpdateUserRequest): Promise<UserResponse> {
-    const formData = new FormData();
-    if (data.firstName) formData.append('firstName', data.firstName);
-    if (data.lastName) formData.append('lastName', data.lastName);
-    if (data.phoneNumber) formData.append('phoneNumber', data.phoneNumber);
-    if (data.role) formData.append('role', data.role);
-    if (data.profilePicture) formData.append('profilePicture', data.profilePicture);
-    if (data.deleteProfilePicture) formData.append('deleteProfilePicture', 'true');
-    const response = await apiClient.put<UserResponse>(ADMIN_USER_ENDPOINTS.USER_BY_ID(id), formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+// Update user by ID (Admin can update user details - no profile picture)
+// Only fields provided in the request will be updated
+export async function updateUserById(id: number, data: UpdateUserRequest): Promise<UpdateUserResponse> {
+    // Only remove undefined values - keep null and empty strings to allow clearing fields
+    const cleanedData: Record<string, unknown> = {};
+
+    Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined) {
+            cleanedData[key] = value;
+        }
     });
+
+    const response = await apiClient.put<UpdateUserResponse>(
+        ADMIN_USER_ENDPOINTS.USER_BY_ID(id),
+        cleanedData,
+        { headers: { 'Content-Type': 'application/json' } }
+    );
     return response.data;
 }
 
 // Activate user account
 export async function activateUser(id: number): Promise<ActionResponse> {
-    const response = await apiClient.patch<ActionResponse>(ADMIN_USER_ENDPOINTS.ACTIVATE_USER(id));
+    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.ACTIVATE_USER(id));
     return response.data;
 }
 
 // Deactivate user account
 export async function deactivateUser(id: number): Promise<ActionResponse> {
-    const response = await apiClient.patch<ActionResponse>(ADMIN_USER_ENDPOINTS.DEACTIVATE_USER(id));
+    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.DEACTIVATE_USER(id));
+    return response.data;
+}
+
+// Suspend user account
+export async function suspendUser(id: number): Promise<ActionResponse> {
+    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.SUSPENDED_USER(id));
     return response.data;
 }
 
 // Unlock suspended user account
 export async function unlockUser(id: number): Promise<ActionResponse> {
-    const response = await apiClient.patch<ActionResponse>(ADMIN_USER_ENDPOINTS.UNLOCK_USER(id));
+    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.UNLOCK_USER(id));
     return response.data;
 }
 

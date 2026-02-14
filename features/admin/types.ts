@@ -33,6 +33,106 @@ export interface User {
     status: StatusType;
 }
 
+// ============================================================================
+// User Detail Types (for getUserById)
+// ============================================================================
+
+export interface UserDetailResponse {
+    success: boolean;
+    message: string;
+    data: UserDetail;
+    timestamp: string;
+}
+
+export interface UserDetail {
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    phoneNumber: string | null;
+    profilePictureUrl: string | null;
+    role: RoleType;
+    status: StatusType;
+    userType: string;
+    createdAt: string;
+    updatedAt: string;
+    roleSpecificData: UserRoleSpecificData;
+}
+
+// Union type for all role-specific data
+export type UserRoleSpecificData =
+    | StudentRoleSpecificData
+    | AcademicStaffRoleSpecificData
+    | NonAcademicStaffRoleSpecificData
+    | AdminRoleSpecificData
+    | null;
+
+// Student role-specific data
+export interface StudentRoleSpecificData {
+    studentId: string;
+    address: string | null;
+    batch: string | null;
+    enrollmentDate: string | null;
+    dateOfBirth: string | null;
+    program: string | null;
+    faculty: string | null;
+    guardianName: string | null;
+    guardianPhone: string | null;
+    studentRoleTypes: string[];
+    studentRoleDisplayName: string;
+    primaryRoleType: string;
+    // Club member data (optional)
+    clubMemberData?: ClubMemberData;
+    // Class rep data (optional)
+    classRepData?: ClassRepData;
+}
+
+export interface ClubMemberData {
+    clubName: string;
+    clubPosition: string;
+    clubMembershipId: string;
+    clubJoinDate: string;
+}
+
+export interface ClassRepData {
+    representingClass: string;
+    representingBatch: string;
+    appointmentDate: string;
+}
+
+// Academic staff role-specific data
+export interface AcademicStaffRoleSpecificData {
+    employeeId: string;
+    department: string | null;
+    faculty: string | null;
+    position: string | null;
+    designation: string | null;
+    specialization: string | null;
+    officeLocation: string | null;
+    officeHours: string | null;
+}
+
+// Non-academic staff role-specific data
+export interface NonAcademicStaffRoleSpecificData {
+    employeeId: string;
+    department: string | null;
+    position: string | null;
+    workShift: string | null;
+    supervisorId: number | null;
+}
+
+// Admin role-specific data
+export interface AdminRoleSpecificData {
+    adminLevel: string | null;
+    permissions: string[];
+    managedDepartments: string[];
+}
+
+// ============================================================================
+// Existing Types
+// ============================================================================
+
 // Create user request
 export interface CreateUserRequest {
     firstName: string;
@@ -97,20 +197,55 @@ export interface NonAcademicStaffData {
     department: string;
 }
 
-// Update user request
+// Update user request (Admin can update user details - no profile picture)
 export interface UpdateUserRequest {
+    // Basic user fields
     firstName?: string;
     lastName?: string;
-    phoneNumber?: string;
-    role?: RoleType;
-    profilePicture?: File | null;
-    deleteProfilePicture?: boolean;
-    // Role-specific fields
-    faculty?: string;
-    department?: string;
-    program?: string;
-    batch?: string;
-    position?: string;
+    phone?: string;
+    address?: string;
+    dateOfBirth?: string;
+
+    // Guardian fields (for students)
+    guardianName?: string;
+    guardianPhone?: string;
+
+    // Club Member fields (if applicable)
+    clubName?: string;
+    clubPosition?: string;
+    clubJoinDate?: string;
+    clubMembershipId?: string;
+
+    // Kuppi Student fields (if applicable)
+    kuppiSubjects?: string[];
+    kuppiExperienceLevel?: string;
+    kuppiAvailability?: string;
+
+    // Batch Rep fields (if applicable)
+    batchRepYear?: string;
+    batchRepSemester?: string;
+    batchRepElectedDate?: string;
+    batchRepResponsibilities?: string;
+
+    // Academic Staff fields (if applicable)
+    designation?: string;
+    specialization?: string;
+    officeLocation?: string;
+    bio?: string;
+    availableForMeetings?: boolean;
+    responsibilities?: string;
+
+    // Non-Academic Staff fields (if applicable)
+    workLocation?: string;
+    shift?: string;
+}
+
+// Update user response
+export interface UpdateUserResponse {
+    success: boolean;
+    message: string;
+    data: UserDetail;
+    timestamp: string;
 }
 
 // User filter params

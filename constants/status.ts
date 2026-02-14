@@ -1,7 +1,7 @@
 // Status enum values (matches backend)
 export const STATUS = {
     ACTIVE: 'ACTIVE',
-    DEACTIVATE: 'DEACTIVATE',
+    DEACTIVATED: "DEACTIVATED",
     SUSPENDED: 'SUSPENDED',
     DELETED: 'DELETED',
     PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED'
@@ -10,7 +10,7 @@ export const STATUS = {
 // Status display labels
 export const STATUS_LABELS: Record<string, string> = {
     ACTIVE: 'Active',
-    DEACTIVATE: 'Deactivate',
+    DEACTIVATED: 'Deactivated',
     SUSPENDED: 'Suspended',
     DELETED: 'Deleted',
     PASSWORD_CHANGE_REQUIRED: 'Password Change Required'
