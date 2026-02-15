@@ -16,6 +16,8 @@ export {
     deactivateUserAsync,
     suspendUserAsync,
     unlockUserAsync,
+    softDeleteUserAsync,
+    restoreUserAsync,
 
     // Actions
     setSearchQuery,
@@ -81,6 +83,8 @@ export {
     deactivateUser,
     suspendUser,
     unlockUser,
+    softDeleteUser,
+    restoreUser,
     searchUsers,
     filterUsers,
     getUserStats,

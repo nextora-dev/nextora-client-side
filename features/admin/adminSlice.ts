@@ -25,6 +25,8 @@ import {
     deactivateUser,
     suspendUser,
     unlockUser,
+    softDeleteUser,
+    restoreUser,
     searchUsers,
     filterUsers,
     getUserStats,
@@ -298,6 +300,30 @@ export const unlockUserAsync = createAsyncThunk<ActionResponse, number>(
             return await unlockUser(userId);
         } catch (error: unknown) {
             return rejectWithValue(extractErrorMessage(error, 'Failed to unlock user'));
+        }
+    }
+);
+
+// Soft delete user thunk
+export const softDeleteUserAsync = createAsyncThunk<ActionResponse, number>(
+    'admin/softDeleteUser',
+    async (userId, { rejectWithValue }) => {
+        try {
+            return await softDeleteUser(userId);
+        } catch (error: unknown) {
+            return rejectWithValue(extractErrorMessage(error, 'Failed to delete user'));
+        }
+    }
+);
+
+// Restore user thunk
+export const restoreUserAsync = createAsyncThunk<ActionResponse, number>(
+    'admin/restoreUser',
+    async (userId, { rejectWithValue }) => {
+        try {
+            return await restoreUser(userId);
+        } catch (error: unknown) {
+            return rejectWithValue(extractErrorMessage(error, 'Failed to restore user'));
         }
     }
 );
@@ -588,6 +614,46 @@ const adminSlice = createSlice({
                 }
             })
             .addCase(unlockUserAsync.rejected, (state, action) => {
+                state.isStatusChanging = false;
+                state.statusChangeError = action.payload as string;
+            });
+
+        // ================================================================
+        // Soft delete user
+        // ================================================================
+        builder
+            .addCase(softDeleteUserAsync.pending, (state) => {
+                state.isStatusChanging = true;
+                state.statusChangeError = null;
+                state.successMessage = null;
+            })
+            .addCase(softDeleteUserAsync.fulfilled, (state, action) => {
+                state.isStatusChanging = false;
+                if (action.payload.success) {
+                    state.successMessage = action.payload.message || 'User deleted successfully';
+                }
+            })
+            .addCase(softDeleteUserAsync.rejected, (state, action) => {
+                state.isStatusChanging = false;
+                state.statusChangeError = action.payload as string;
+            });
+
+        // ================================================================
+        // Restore user
+        // ================================================================
+        builder
+            .addCase(restoreUserAsync.pending, (state) => {
+                state.isStatusChanging = true;
+                state.statusChangeError = null;
+                state.successMessage = null;
+            })
+            .addCase(restoreUserAsync.fulfilled, (state, action) => {
+                state.isStatusChanging = false;
+                if (action.payload.success) {
+                    state.successMessage = action.payload.message || 'User restored successfully';
+                }
+            })
+            .addCase(restoreUserAsync.rejected, (state, action) => {
                 state.isStatusChanging = false;
                 state.statusChangeError = action.payload as string;
             });
