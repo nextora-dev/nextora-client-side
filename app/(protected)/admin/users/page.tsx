@@ -30,6 +30,7 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import SchoolIcon from '@mui/icons-material/School';
 import WorkIcon from '@mui/icons-material/Work';
 import EngineeringIcon from '@mui/icons-material/Engineering';
+import RestoreIcon from '@mui/icons-material/Restore';
 import { ROLE_LABELS, RoleType } from '@/constants/roles';
 import { FACULTY, FACULTY_LABELS } from '@/constants/faculty';
 import { CreateUserRequest, UpdateUserRequest, User } from '@/features/admin';
@@ -46,6 +47,8 @@ import {
     deactivateUserAsync,
     suspendUserAsync,
     unlockUserAsync,
+    softDeleteUserAsync,
+    restoreUserAsync,
     // Actions
     setSearchQuery as setSearchQueryAction,
     setRoleFilter as setRoleFilterAction,
@@ -217,7 +220,7 @@ export default function AdminUsersPage() {
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | 'suspend' | 'unlock' | null>(null);
+    const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | 'suspend' | 'unlock' | 'delete' | 'restore' | null>(null);
 
 
     // Form state for create user
@@ -382,7 +385,7 @@ const handleEditUser = () => {
         }
     }, [userDetail, editDialogOpen, selectedUser]);
 
-    const handleStatusAction = (action: 'activate' | 'deactivate' | 'suspend' | 'unlock') => {
+    const handleStatusAction = (action: 'activate' | 'deactivate' | 'suspend' | 'unlock' | 'delete' | 'restore') => {
         handleMenuClose();
         setConfirmAction(action);
         setConfirmDialogOpen(true);
@@ -400,6 +403,10 @@ const handleEditUser = () => {
             dispatch(suspendUserAsync(selectedUser.id));
         } else if (confirmAction === 'unlock') {
             dispatch(unlockUserAsync(selectedUser.id));
+        } else if (confirmAction === 'delete') {
+            dispatch(softDeleteUserAsync(selectedUser.id));
+        } else if (confirmAction === 'restore') {
+            dispatch(restoreUserAsync(selectedUser.id));
         }
 
         setConfirmDialogOpen(false);
@@ -940,8 +947,8 @@ const handleEditUser = () => {
                 <MenuItem onClick={handleViewUser}><VisibilityIcon sx={{ mr: 1.5, fontSize: 20 }} />View Details</MenuItem>
                 <MenuItem onClick={handleEditUser}><EditIcon sx={{ mr: 1.5, fontSize: 20 }} />Edit User</MenuItem>
                 <Divider />
-                {/* Activate - show when user is deactivated */}
-                {selectedUser?.status === 'DEACTIVATED' && (
+                {/* Activate - show when user is deactivated or password change required */}
+                {(selectedUser?.status === 'DEACTIVATED' || selectedUser?.status === 'PASSWORD_CHANGE_REQUIRED') && (
                     <MenuItem onClick={() => handleStatusAction('activate')} sx={{ color: 'success.main' }}>
                         <PersonIcon sx={{ mr: 1.5, fontSize: 20 }} />Activate
                     </MenuItem>
@@ -964,6 +971,19 @@ const handleEditUser = () => {
                         <LockIcon sx={{ mr: 1.5, fontSize: 20 }} />Unlock
                     </MenuItem>
                 )}
+                {/* Soft Delete - show when user is not already deleted */}
+                {selectedUser?.status !== 'DELETED' && <Divider />}
+                {selectedUser?.status !== 'DELETED' && (
+                    <MenuItem onClick={() => handleStatusAction('delete')} sx={{ color: 'error.main' }}>
+                        <DeleteIcon sx={{ mr: 1.5, fontSize: 20 }} />Soft Delete
+                    </MenuItem>
+                )}
+                {/* Restore - show when user is deleted */}
+                {selectedUser?.status === 'DELETED' && (
+                    <MenuItem onClick={() => handleStatusAction('restore')} sx={{ color: 'success.main' }}>
+                        <RestoreIcon sx={{ mr: 1.5, fontSize: 20 }} />Restore
+                    </MenuItem>
+                )}
             </Menu>
 
             {/* Create User Dialog */}
@@ -975,7 +995,7 @@ const handleEditUser = () => {
                 fullScreen={isMobile}
                 PaperProps={{
                     sx: {
-                        borderRadius: isMobile ? 0 : 2,
+                        borderRadius: isMobile ? 0 : 1,
                         m: isMobile ? 0 : 2
                     }
                 }}
@@ -1823,6 +1843,8 @@ const handleEditUser = () => {
                     {confirmAction === 'deactivate' && 'Deactivate User'}
                     {confirmAction === 'suspend' && 'Suspend User'}
                     {confirmAction === 'unlock' && 'Unlock User'}
+                    {confirmAction === 'delete' && 'Delete User'}
+                    {confirmAction === 'restore' && 'Restore User'}
                 </DialogTitle>
                 <DialogContent>
                     <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
@@ -1830,13 +1852,15 @@ const handleEditUser = () => {
                         {confirmAction === 'deactivate' && `Are you sure you want to deactivate ${selectedUser?.fullName}'s account? They will no longer be able to log in.`}
                         {confirmAction === 'suspend' && `Are you sure you want to suspend ${selectedUser?.fullName}'s account? This will immediately block their access.`}
                         {confirmAction === 'unlock' && `Are you sure you want to unlock ${selectedUser?.fullName}'s account? They will be able to log in again.`}
+                        {confirmAction === 'delete' && `Are you sure you want to delete ${selectedUser?.fullName}'s account? This action will soft delete the user and they will no longer be able to access the system.`}
+                        {confirmAction === 'restore' && `Are you sure you want to restore ${selectedUser?.fullName}'s account? The user will be reactivated and able to access the system again.`}
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
                     <Button onClick={() => setConfirmDialogOpen(false)} fullWidth={isMobile}>Cancel</Button>
                     <Button
                         variant="contained"
-                        color={confirmAction === 'deactivate' || confirmAction === 'suspend' ? 'error' : 'success'}
+                        color={confirmAction === 'deactivate' || confirmAction === 'suspend' || confirmAction === 'delete' ? 'error' : 'success'}
                         onClick={handleConfirmAction}
                         disabled={isStatusChanging}
                         fullWidth={isMobile}

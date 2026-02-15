@@ -23,6 +23,7 @@ const ADMIN_USER_ENDPOINTS = {
     DEACTIVATE_USER: (id: number) => `/admin/user/${id}/deactivate`,
     SUSPENDED_USER: (id: number) => `/admin/user/${id}/suspend`,
     UNLOCK_USER: (id: number) => `/admin/user/${id}/unlock`,
+    RESTORE_USER: (id: number) => `/admin/user/${id}/restore`,
     SEARCH_USERS: '/admin/user/search',
     FILTER_USERS: '/admin/user/filter',
     USER_STATS: '/admin/user/stats',
@@ -93,6 +94,18 @@ export async function suspendUser(id: number): Promise<ActionResponse> {
 // Unlock suspended user account
 export async function unlockUser(id: number): Promise<ActionResponse> {
     const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.UNLOCK_USER(id));
+    return response.data;
+}
+
+// Soft delete user account
+export async function softDeleteUser(id: number): Promise<ActionResponse> {
+    const response = await apiClient.delete<ActionResponse>(ADMIN_USER_ENDPOINTS.USER_BY_ID(id));
+    return response.data;
+}
+
+// Restore deleted user account
+export async function restoreUser(id: number): Promise<ActionResponse> {
+    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.RESTORE_USER(id));
     return response.data;
 }
 
