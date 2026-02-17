@@ -70,6 +70,7 @@ export const ROUTES = {
         DASHBOARD: '/super-admin',
         ADMINS: '/super-admin/admins',
         USERS: '/super-admin/users',
+        USER_MANAGEMENT: '/super-admin/user-management',
         SYSTEM: '/super-admin/system',
         SECURITY: '/super-admin/security',
         AUDIT: '/super-admin/audit',

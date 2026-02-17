@@ -1,41 +1,83 @@
 // Super Admin Services - API calls for system administration
-import { api } from '../../lib/api-client';
-import { PaginatedResponse, PaginationParams } from '../../types/api';
-import { SystemSettings, AuditLog, SystemHealth, BackupInfo } from './super-admin.types';
+import apiClient from '../../lib/api-client';
+import {
+    CreateAdminRequest,
+    CreateAdminResponse,
+    ResetPasswordResponse,
+    PermanentDeleteResponse,
+    SuperAdminUserStatsResponse,
+} from './super-admin.types';
+import { ActionResponse, AllUsersResponse, UserFilterParams, UserDetailResponse } from '@/features';
 
 const SUPER_ADMIN_ENDPOINTS = {
-    SETTINGS: '/super-admin/settings',
-    AUDIT_LOGS: '/super-admin/audit-logs',
-    SYSTEM_HEALTH: '/super-admin/health',
-    BACKUPS: '/super-admin/backups',
-    BACKUP_CREATE: '/super-admin/backups/create',
+    // User management endpoints
+    USERS: '/admin/user',
+    USER_BY_ID: (id: number) => `/super-admin/user/${id}`,
+    CREATE_ADMIN: '/super-admin/user/admin',
+    RESET_PASSWORD: (id: number) => `/super-admin/user/${id}/reset-password`,
+    PERMANENT_DELETE: (id: number) => `/super-admin/user/${id}/permanent`,
+    SOFT_DELETE: (id: number) => `/super-admin/user/${id}`,
+    RESTORE_USER: (id: number) => `/super-admin/user/${id}/restore`,
+    USER_STATS: '/super-admin/user/stats',
 };
 
-export async function getSystemSettings(): Promise<SystemSettings> {
-    return api.get<SystemSettings>(SUPER_ADMIN_ENDPOINTS.SETTINGS);
-}
+// ============================================================================
+// Super Admin User Management Services
+// ============================================================================
 
-export async function updateSystemSettings(settings: Partial<SystemSettings>): Promise<SystemSettings> {
-    return api.put<SystemSettings>(SUPER_ADMIN_ENDPOINTS.SETTINGS, settings);
-}
-
-export async function getAuditLogs(params?: PaginationParams & { userId?: string; action?: string }): Promise<PaginatedResponse<AuditLog>> {
+// Get all users with pagination (for super admin)
+export async function getAllUsersSuperAdmin(params: UserFilterParams = {}): Promise<AllUsersResponse> {
     const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.size) queryParams.append('size', params.size.toString());
-    if (params?.userId) queryParams.append('userId', params.userId);
-    if (params?.action) queryParams.append('action', params.action);
-    return api.get<PaginatedResponse<AuditLog>>(`${SUPER_ADMIN_ENDPOINTS.AUDIT_LOGS}?${queryParams.toString()}`);
+    if (params.page !== undefined) queryParams.append('page', params.page.toString());
+    if (params.size) queryParams.append('size', params.size.toString());
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortDirection) queryParams.append('sortDirection', params.sortDirection);
+    const url = `${SUPER_ADMIN_ENDPOINTS.USERS}?${queryParams.toString()}`;
+    const response = await apiClient.get<AllUsersResponse>(url);
+    return response.data;
 }
 
-export async function getSystemHealth(): Promise<SystemHealth> {
-    return api.get<SystemHealth>(SUPER_ADMIN_ENDPOINTS.SYSTEM_HEALTH);
+// Get user by ID (for super admin)
+export async function getUserByIdSuperAdmin(id: number): Promise<UserDetailResponse> {
+    const response = await apiClient.get<UserDetailResponse>(SUPER_ADMIN_ENDPOINTS.USER_BY_ID(id));
+    return response.data;
 }
 
-export async function getBackups(): Promise<BackupInfo[]> {
-    return api.get<BackupInfo[]>(SUPER_ADMIN_ENDPOINTS.BACKUPS);
+// Create new admin user (Super Admin only)
+export async function createAdminUser(data: CreateAdminRequest): Promise<CreateAdminResponse> {
+    const response = await apiClient.post<CreateAdminResponse>(SUPER_ADMIN_ENDPOINTS.CREATE_ADMIN, data);
+    return response.data;
 }
 
-export async function createBackup(type: 'full' | 'incremental'): Promise<BackupInfo> {
-    return api.post<BackupInfo>(SUPER_ADMIN_ENDPOINTS.BACKUP_CREATE, { type });
+// Reset user password and send credentials via email (Super Admin only)
+export async function resetUserPassword(id: number): Promise<ResetPasswordResponse> {
+    const response = await apiClient.put<ResetPasswordResponse>(SUPER_ADMIN_ENDPOINTS.RESET_PASSWORD(id));
+    return response.data;
 }
+
+// Soft delete user (Super Admin)
+export async function softDeleteUserSuperAdmin(id: number): Promise<ActionResponse> {
+    const response = await apiClient.delete<ActionResponse>(SUPER_ADMIN_ENDPOINTS.SOFT_DELETE(id));
+    return response.data;
+}
+
+// Restore soft-deleted user (Super Admin)
+export async function restoreUserSuperAdmin(id: number): Promise<ActionResponse> {
+    const response = await apiClient.put<ActionResponse>(SUPER_ADMIN_ENDPOINTS.RESTORE_USER(id));
+    return response.data;
+}
+
+// Permanently delete user (Super Admin only - irreversible)
+export async function permanentDeleteUserSuperAdmin(id: number): Promise<PermanentDeleteResponse> {
+    const response = await apiClient.delete<PermanentDeleteResponse>(SUPER_ADMIN_ENDPOINTS.PERMANENT_DELETE(id));
+    return response.data;
+}
+
+// Get super admin user statistics
+export async function getSuperAdminUserStats(): Promise<SuperAdminUserStatsResponse> {
+    const response = await apiClient.get<SuperAdminUserStatsResponse>(SUPER_ADMIN_ENDPOINTS.USER_STATS);
+    return response.data;
+}
+
+export { SUPER_ADMIN_ENDPOINTS };
+

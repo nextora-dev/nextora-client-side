@@ -9,6 +9,7 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import authReducer from '@/features/auth/authSlice';
 import userReducer from '@/features/users/userSlice';
 import adminReducer from '@/features/admin/adminSlice';
+import superAdminReducer from '@/features/super-admin/superAdminSlice';
 import {
     persistStore,
     persistReducer,
@@ -30,6 +31,7 @@ const rootReducer = combineReducers({
     auth: authReducer,
     user: userReducer,
     admin: adminReducer,
+    superAdmin: superAdminReducer,
 });
 
 // ============================================================================
@@ -39,7 +41,7 @@ const rootReducer = combineReducers({
 const persistConfig = {
     key: 'nextora-root',
     storage,
-    whitelist: ['auth', 'user'], // Slices to persist (admin is not persisted - fetched fresh)
+    whitelist: ['auth', 'user'], // Slices to persist (admin and superAdmin are not persisted - fetched fresh)
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

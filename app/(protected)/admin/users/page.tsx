@@ -18,6 +18,8 @@ import PersonOffIcon from '@mui/icons-material/PersonOff';
 import PersonIcon from '@mui/icons-material/Person';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BadgeIcon from '@mui/icons-material/Badge';
@@ -49,6 +51,7 @@ import {
     unlockUserAsync,
     softDeleteUserAsync,
     restoreUserAsync,
+    permanentDeleteUserAsync,
     // Actions
     setSearchQuery as setSearchQueryAction,
     setRoleFilter as setRoleFilterAction,
@@ -220,7 +223,8 @@ export default function AdminUsersPage() {
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | 'suspend' | 'unlock' | 'delete' | 'restore' | null>(null);
+    const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | 'suspend' | 'unlock' | 'delete' | 'restore' | 'permanentDelete' | null>(null);
+    const [permanentDeleteConfirmText, setPermanentDeleteConfirmText] = useState('');
 
 
     // Form state for create user
@@ -385,9 +389,10 @@ const handleEditUser = () => {
         }
     }, [userDetail, editDialogOpen, selectedUser]);
 
-    const handleStatusAction = (action: 'activate' | 'deactivate' | 'suspend' | 'unlock' | 'delete' | 'restore') => {
+    const handleStatusAction = (action: 'activate' | 'deactivate' | 'suspend' | 'unlock' | 'delete' | 'restore' | 'permanentDelete') => {
         handleMenuClose();
         setConfirmAction(action);
+        setPermanentDeleteConfirmText('');
         setConfirmDialogOpen(true);
     };
 
@@ -407,9 +412,16 @@ const handleEditUser = () => {
             dispatch(softDeleteUserAsync(selectedUser.id));
         } else if (confirmAction === 'restore') {
             dispatch(restoreUserAsync(selectedUser.id));
+        } else if (confirmAction === 'permanentDelete') {
+            if (permanentDeleteConfirmText !== 'DELETE') {
+                setSnackbar({ open: true, message: 'Please type DELETE to confirm', severity: 'error' });
+                return;
+            }
+            dispatch(permanentDeleteUserAsync(selectedUser.id));
         }
 
         setConfirmDialogOpen(false);
+        setPermanentDeleteConfirmText('');
     };
 
     const handleCreateUser = () => {
@@ -974,7 +986,7 @@ const handleEditUser = () => {
                 {/* Soft Delete - show when user is not already deleted */}
                 {selectedUser?.status !== 'DELETED' && <Divider />}
                 {selectedUser?.status !== 'DELETED' && (
-                    <MenuItem onClick={() => handleStatusAction('delete')} sx={{ color: 'error.main' }}>
+                    <MenuItem onClick={() => handleStatusAction('delete')} sx={{ color: 'warning.main' }}>
                         <DeleteIcon sx={{ mr: 1.5, fontSize: 20 }} />Soft Delete
                     </MenuItem>
                 )}
@@ -984,6 +996,11 @@ const handleEditUser = () => {
                         <RestoreIcon sx={{ mr: 1.5, fontSize: 20 }} />Restore
                     </MenuItem>
                 )}
+                {/* Permanent Delete - dangerous action */}
+                <Divider />
+                <MenuItem onClick={() => handleStatusAction('permanentDelete')} sx={{ color: 'error.main' }}>
+                    <DeleteForeverIcon sx={{ mr: 1.5, fontSize: 20 }} />Permanently Delete
+                </MenuItem>
             </Menu>
 
             {/* Create User Dialog */}
@@ -1845,6 +1862,7 @@ const handleEditUser = () => {
                     {confirmAction === 'unlock' && 'Unlock User'}
                     {confirmAction === 'delete' && 'Delete User'}
                     {confirmAction === 'restore' && 'Restore User'}
+                    {confirmAction === 'permanentDelete' && 'Permanently Delete User'}
                 </DialogTitle>
                 <DialogContent>
                     <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
@@ -1854,15 +1872,40 @@ const handleEditUser = () => {
                         {confirmAction === 'unlock' && `Are you sure you want to unlock ${selectedUser?.fullName}'s account? They will be able to log in again.`}
                         {confirmAction === 'delete' && `Are you sure you want to delete ${selectedUser?.fullName}'s account? This action will soft delete the user and they will no longer be able to access the system.`}
                         {confirmAction === 'restore' && `Are you sure you want to restore ${selectedUser?.fullName}'s account? The user will be reactivated and able to access the system again.`}
+                        {confirmAction === 'permanentDelete' && `Are you sure you want to PERMANENTLY delete ${selectedUser?.fullName}'s account? This action is IRREVERSIBLE and all user data will be lost forever.`}
                     </Typography>
+                    {confirmAction === 'permanentDelete' && (
+                        <Box sx={{ mt: 3 }}>
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                    <WarningAmberIcon />
+                                    <Typography variant="body2" fontWeight={600}>
+                                        Type &quot;DELETE&quot; to confirm permanent deletion
+                                    </Typography>
+                                </Stack>
+                            </Alert>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Type DELETE to confirm"
+                                value={permanentDeleteConfirmText}
+                                onChange={(e) => setPermanentDeleteConfirmText(e.target.value)}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderColor: permanentDeleteConfirmText === 'DELETE' ? 'success.main' : 'inherit'
+                                    }
+                                }}
+                            />
+                        </Box>
+                    )}
                 </DialogContent>
                 <DialogActions sx={{ p: { xs: 2, sm: 2.5 }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                    <Button onClick={() => setConfirmDialogOpen(false)} fullWidth={isMobile}>Cancel</Button>
+                    <Button onClick={() => { setConfirmDialogOpen(false); setPermanentDeleteConfirmText(''); }} fullWidth={isMobile}>Cancel</Button>
                     <Button
                         variant="contained"
-                        color={confirmAction === 'deactivate' || confirmAction === 'suspend' || confirmAction === 'delete' ? 'error' : 'success'}
+                        color={confirmAction === 'deactivate' || confirmAction === 'suspend' || confirmAction === 'delete' || confirmAction === 'permanentDelete' ? 'error' : 'success'}
                         onClick={handleConfirmAction}
-                        disabled={isStatusChanging}
+                        disabled={isStatusChanging || (confirmAction === 'permanentDelete' && permanentDeleteConfirmText !== 'DELETE')}
                         fullWidth={isMobile}
                     >
                         {isStatusChanging ? <CircularProgress size={20} /> : 'Confirm'}

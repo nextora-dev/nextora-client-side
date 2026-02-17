@@ -27,6 +27,7 @@ import {
     unlockUser,
     softDeleteUser,
     restoreUser,
+    permanentDeleteUser,
     searchUsers,
     filterUsers,
     getUserStats,
@@ -324,6 +325,18 @@ export const restoreUserAsync = createAsyncThunk<ActionResponse, number>(
             return await restoreUser(userId);
         } catch (error: unknown) {
             return rejectWithValue(extractErrorMessage(error, 'Failed to restore user'));
+        }
+    }
+);
+
+// Permanent delete user thunk
+export const permanentDeleteUserAsync = createAsyncThunk<ActionResponse, number>(
+    'admin/permanentDeleteUser',
+    async (userId, { rejectWithValue }) => {
+        try {
+            return await permanentDeleteUser(userId);
+        } catch (error: unknown) {
+            return rejectWithValue(extractErrorMessage(error, 'Failed to permanently delete user'));
         }
     }
 );
@@ -654,6 +667,26 @@ const adminSlice = createSlice({
                 }
             })
             .addCase(restoreUserAsync.rejected, (state, action) => {
+                state.isStatusChanging = false;
+                state.statusChangeError = action.payload as string;
+            });
+
+        // ================================================================
+        // Permanent delete user
+        // ================================================================
+        builder
+            .addCase(permanentDeleteUserAsync.pending, (state) => {
+                state.isStatusChanging = true;
+                state.statusChangeError = null;
+                state.successMessage = null;
+            })
+            .addCase(permanentDeleteUserAsync.fulfilled, (state, action) => {
+                state.isStatusChanging = false;
+                if (action.payload.success) {
+                    state.successMessage = action.payload.message || 'User permanently deleted';
+                }
+            })
+            .addCase(permanentDeleteUserAsync.rejected, (state, action) => {
                 state.isStatusChanging = false;
                 state.statusChangeError = action.payload as string;
             });
