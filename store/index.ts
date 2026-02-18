@@ -10,6 +10,7 @@ import authReducer from '@/features/auth/authSlice';
 import userReducer from '@/features/users/userSlice';
 import adminReducer from '@/features/admin/adminSlice';
 import superAdminReducer from '@/features/super-admin/superAdminSlice';
+import adminUserManagementReducer from '@/features/super-admin/adminUserManagementSlice';
 import {
     persistStore,
     persistReducer,
@@ -32,6 +33,7 @@ const rootReducer = combineReducers({
     user: userReducer,
     admin: adminReducer,
     superAdmin: superAdminReducer,
+    adminUserManagement: adminUserManagementReducer,
 });
 
 // ============================================================================

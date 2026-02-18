@@ -1,16 +1,28 @@
 export * from './super-admin.types';
 export * from './services';
 
-// Explicit exports for super admin user management
+// Explicit exports for super admin user management services
 export {
     getAllUsersSuperAdmin,
     getUserByIdSuperAdmin,
+    createUserSuperAdmin,
     createAdminUser,
-    resetUserPassword,
+    updateUserByIdSuperAdmin,
+    activateUserSuperAdmin,
+    deactivateUserSuperAdmin,
+    suspendUserSuperAdmin,
+    unlockUserSuperAdmin,
     softDeleteUserSuperAdmin,
     restoreUserSuperAdmin,
     permanentDeleteUserSuperAdmin,
     getSuperAdminUserStats,
+    // Admin User Management Services (Super Admin Exclusive)
+    getAllAdminUsers,
+    getAdminUserById,
+    updateAdminUser,
+    softDeleteAdminUser,
+    permanentDeleteAdminUser,
+    restoreAdminUser,
     SUPER_ADMIN_ENDPOINTS,
 } from './services';
 
@@ -23,8 +35,13 @@ export {
     fetchUsersSuperAdmin,
     fetchUserStatsSuperAdmin,
     fetchUserByIdSuperAdmin,
+    createUserSuperAdminAsync,
     createAdminUserAsync,
-    resetUserPasswordAsync,
+    updateUserSuperAdminAsync,
+    activateUserSuperAdminAsync,
+    deactivateUserSuperAdminAsync,
+    suspendUserSuperAdminAsync,
+    unlockUserSuperAdminAsync,
     softDeleteUserSuperAdminAsync,
     restoreUserSuperAdminAsync,
     permanentDeleteUserSuperAdminAsync,
@@ -57,13 +74,15 @@ export {
     selectSuperAdminIsUserDetailLoading,
     selectSuperAdminUserDetailError,
     selectSuperAdminIsLoading,
+    selectSuperAdminIsCreating,
     selectSuperAdminIsCreatingAdmin,
-    selectSuperAdminIsResettingPassword,
+    selectSuperAdminIsUpdating,
     selectSuperAdminIsPermanentDeleting,
     selectSuperAdminIsStatusChanging,
     selectSuperAdminError,
+    selectSuperAdminCreateError,
     selectSuperAdminCreateAdminError,
-    selectSuperAdminResetPasswordError,
+    selectSuperAdminUpdateError,
     selectSuperAdminPermanentDeleteError,
     selectSuperAdminStatusChangeError,
     selectSuperAdminSuccessMessage,
@@ -71,4 +90,53 @@ export {
     // Types
     type SuperAdminUsersState,
 } from './superAdminSlice';
+
+// Export admin user management slice (Super Admin Exclusive)
+export {
+    default as adminUserManagementReducer,
+    // Thunks
+    fetchAdminUsers,
+    fetchAdminUserById,
+    createAdminUserAsync as createAdminUserManagementAsync,
+    updateAdminUserAsync,
+    softDeleteAdminUserAsync,
+    permanentDeleteAdminUserAsync,
+    restoreAdminUserAsync,
+    // Actions
+    setAdminSearchQuery,
+    setAdminStatusFilter,
+    setAdminCurrentPage,
+    setAdminPageSize,
+    clearAdminFilters,
+    clearSelectedAdminDetail,
+    clearAdminError,
+    clearAllAdminErrors,
+    clearAdminSuccessMessage,
+    resetAdminUserManagementState,
+    // Selectors
+    selectAdminUsers,
+    selectTotalAdminUsers,
+    selectAdminCurrentPage,
+    selectAdminPageSize,
+    selectAdminTotalPages,
+    selectAdminSearchQuery,
+    selectAdminStatusFilter,
+    selectSelectedAdminDetail,
+    selectIsAdminDetailLoading,
+    selectAdminDetailError,
+    selectIsAdminUsersLoading,
+    selectIsCreatingAdmin,
+    selectIsUpdatingAdmin,
+    selectIsSoftDeletingAdmin,
+    selectIsPermanentDeletingAdmin,
+    selectIsRestoringAdmin,
+    selectAdminUsersError,
+    selectAdminCreateError,
+    selectAdminUpdateError,
+    selectAdminDeleteError,
+    selectAdminRestoreError,
+    selectAdminSuccessMessage,
+    // Types
+    type AdminUserManagementState,
+} from './adminUserManagementSlice';
 
