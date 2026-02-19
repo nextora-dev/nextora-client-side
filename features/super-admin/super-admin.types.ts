@@ -44,14 +44,15 @@ export interface BackupInfo {
 // Super Admin User Management Types
 // ============================================================================
 
-// Create Admin Request
+// Create Admin Request - matches backend CreateAdminRequest
 export interface CreateAdminRequest {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-    adminLevel?: 'STANDARD' | 'SENIOR';
-    department?: string;
+    email: string;           // Required
+    password: string;        // Required, min 8 characters
+    firstName: string;       // Required
+    lastName: string;        // Required
+    adminId: string;         // Required
+    department: string;      // Required
+    phone?: string;          // Optional
 }
 
 // Create Admin Response
@@ -128,6 +129,7 @@ export interface AdminUser {
     lastName: string;
     fullName: string;
     phone: string | null;
+    phoneNumber?: string | null; // Backend might use this field name
     profilePictureUrl: string | null;
     role: 'ROLE_ADMIN' | 'ROLE_SUPER_ADMIN';
     status: 'ACTIVE' | 'DEACTIVATED' | 'SUSPENDED' | 'DELETED' | 'PASSWORD_CHANGE_REQUIRED';
@@ -142,8 +144,10 @@ export interface AdminUser {
 export interface AdminUserDetail extends AdminUser {
     roleSpecificData?: {
         employeeId?: string;
+        adminId?: string;
         department?: string;
         position?: string;
+        phone?: string;
         adminLevel?: 'STANDARD' | 'SENIOR';
         permissions?: string[];
     };

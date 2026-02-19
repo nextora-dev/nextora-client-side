@@ -1,15 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Typography, Card, CardContent, Grid, Stack, Button, TextField, IconButton,
-    Avatar, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    TablePagination, Menu, MenuItem, Dialog, DialogTitle, DialogContent,
-    DialogActions, InputAdornment, Select, FormControl, InputLabel, Alert, Snackbar,
-    CircularProgress, Tooltip, alpha, useTheme, Divider, useMediaQuery, Paper,
+    Avatar, Chip, Menu, MenuItem, Dialog, DialogTitle, DialogContent,
+    DialogActions, InputAdornment, Alert, Snackbar,
+    CircularProgress, Tooltip, alpha, useTheme, Divider, useMediaQuery, Skeleton,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -39,31 +37,23 @@ import {
     softDeleteAdminUserAsync,
     permanentDeleteAdminUserAsync,
     restoreAdminUserAsync,
-    setAdminSearchQuery,
-    setAdminStatusFilter,
-    setAdminCurrentPage,
-    setAdminPageSize,
     clearSelectedAdminDetail,
-    clearAdminSuccessMessage,
-    selectAdminUsers,
-    selectTotalAdminUsers,
-    selectAdminCurrentPage,
-    selectAdminPageSize,
+    clearAdminMgmtSuccessMessage,
+    selectAdminMgmtUsers,
     selectSelectedAdminDetail,
     selectIsAdminDetailLoading,
     selectIsAdminUsersLoading,
-    selectIsCreatingAdmin,
-    selectIsUpdatingAdmin,
+    selectIsCreatingAdminUser,
+    selectIsUpdatingAdminUser,
     selectIsSoftDeletingAdmin,
     selectIsPermanentDeletingAdmin,
     selectIsRestoringAdmin,
-    selectAdminUsersError,
-    selectAdminCreateError,
-    selectAdminUpdateError,
-    selectAdminDeleteError,
-    selectAdminRestoreError,
-    selectAdminSuccessMessage,
-    selectAdminStatusFilter,
+    selectAdminMgmtError,
+    selectAdminMgmtCreateError,
+    selectAdminMgmtUpdateError,
+    selectAdminMgmtDeleteError,
+    selectAdminMgmtRestoreError,
+    selectAdminMgmtSuccessMessage,
 } from '@/features/super-admin';
 import { AdminUser, CreateAdminRequest, UpdateAdminRequest } from '@/features/super-admin';
 
@@ -101,36 +91,29 @@ interface EditFormData {
 export default function AdminManagementPage() {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
     const dispatch = useAppDispatch();
 
     // Redux selectors
-    const adminUsers = useAppSelector(selectAdminUsers);
-    const totalAdminUsers = useAppSelector(selectTotalAdminUsers);
-    const page = useAppSelector(selectAdminCurrentPage);
-    const rowsPerPage = useAppSelector(selectAdminPageSize);
-    const statusFilter = useAppSelector(selectAdminStatusFilter);
+    const adminUsers = useAppSelector(selectAdminMgmtUsers);
     const selectedAdminDetail = useAppSelector(selectSelectedAdminDetail);
     const isAdminDetailLoading = useAppSelector(selectIsAdminDetailLoading);
     const loading = useAppSelector(selectIsAdminUsersLoading);
-    const isCreating = useAppSelector(selectIsCreatingAdmin);
-    const isUpdating = useAppSelector(selectIsUpdatingAdmin);
+    const isCreating = useAppSelector(selectIsCreatingAdminUser);
+    const isUpdating = useAppSelector(selectIsUpdatingAdminUser);
     const isSoftDeleting = useAppSelector(selectIsSoftDeletingAdmin);
     const isPermanentDeleting = useAppSelector(selectIsPermanentDeletingAdmin);
     const isRestoring = useAppSelector(selectIsRestoringAdmin);
-    const error = useAppSelector(selectAdminUsersError);
-    const createError = useAppSelector(selectAdminCreateError);
-    const updateError = useAppSelector(selectAdminUpdateError);
-    const deleteError = useAppSelector(selectAdminDeleteError);
-    const restoreError = useAppSelector(selectAdminRestoreError);
-    const successMessage = useAppSelector(selectAdminSuccessMessage);
+    const error = useAppSelector(selectAdminMgmtError);
+    const createError = useAppSelector(selectAdminMgmtCreateError);
+    const updateError = useAppSelector(selectAdminMgmtUpdateError);
+    const deleteError = useAppSelector(selectAdminMgmtDeleteError);
+    const restoreError = useAppSelector(selectAdminMgmtRestoreError);
+    const successMessage = useAppSelector(selectAdminMgmtSuccessMessage);
 
     // Local state
-    const [localSearchQuery, setLocalSearchQuery] = useState('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
-    const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Dialog states
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -145,28 +128,19 @@ export default function AdminManagementPage() {
     const [editFormData, setEditFormData] = useState<EditFormData>({});
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    // Debounce search
+    // Fetch admin users on mount only
     useEffect(() => {
-        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        searchTimerRef.current = setTimeout(() => {
-            dispatch(setAdminSearchQuery(localSearchQuery));
-        }, 500);
-        return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-    }, [localSearchQuery, dispatch]);
-
-    // Fetch admin users on mount
-    useEffect(() => {
-        dispatch(fetchAdminUsers({ page, size: rowsPerPage }));
-    }, [dispatch, page, rowsPerPage]);
+        dispatch(fetchAdminUsers({ page: 0, size: 100 })); // Fetch all admins for grid display
+    }, [dispatch]);
 
     // Handle success messages
     useEffect(() => {
         if (successMessage) {
             setSnackbar({ open: true, message: successMessage, severity: 'success' });
-            dispatch(clearAdminSuccessMessage());
-            dispatch(fetchAdminUsers({ page, size: rowsPerPage }));
+            dispatch(clearAdminMgmtSuccessMessage());
+            dispatch(fetchAdminUsers({ page: 0, size: 100 }));
         }
-    }, [successMessage, dispatch, page, rowsPerPage]);
+    }, [successMessage, dispatch]);
 
     // Handle errors
     useEffect(() => { if (error) setSnackbar({ open: true, message: error, severity: 'error' }); }, [error]);
@@ -178,19 +152,28 @@ export default function AdminManagementPage() {
     // Populate edit form
     useEffect(() => {
         if (selectedAdminDetail && editDialogOpen) {
+            // Get phone from various possible field names
+            const phone = selectedAdminDetail.phone ||
+                          selectedAdminDetail.phoneNumber ||
+                          (selectedAdminDetail.roleSpecificData as Record<string, unknown>)?.phone as string ||
+                          (selectedAdminDetail.roleSpecificData as Record<string, unknown>)?.phoneNumber as string || '';
+            // Get department from direct field or roleSpecificData
+            const department = selectedAdminDetail.department ||
+                               selectedAdminDetail.roleSpecificData?.department || '';
+
             setEditFormData({
                 firstName: selectedAdminDetail.firstName,
                 lastName: selectedAdminDetail.lastName,
-                phone: selectedAdminDetail.phone || '',
-                department: selectedAdminDetail.roleSpecificData?.department || '',
+                phone: phone,
+                department: department,
             });
         }
     }, [selectedAdminDetail, editDialogOpen]);
 
     // Handlers
     const handleRefresh = useCallback(() => {
-        dispatch(fetchAdminUsers({ page, size: rowsPerPage }));
-    }, [dispatch, page, rowsPerPage]);
+        dispatch(fetchAdminUsers({ page: 0, size: 100 }));
+    }, [dispatch]);
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, admin: AdminUser) => {
         setAnchorEl(event.currentTarget);
@@ -243,7 +226,7 @@ export default function AdminManagementPage() {
     };
 
     const handleCreateAdmin = () => {
-        setFormData({ adminLevel: 'STANDARD' });
+        setFormData({});
         setFormErrors({});
         setCreateDialogOpen(true);
     };
@@ -254,6 +237,10 @@ export default function AdminManagementPage() {
         if (!formData.lastName?.trim()) errors.lastName = 'Last name is required';
         if (!formData.email?.trim()) errors.email = 'Email is required';
         if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Invalid email format';
+        if (!formData.password?.trim()) errors.password = 'Password is required';
+        if (formData.password && formData.password.length < 8) errors.password = 'Password must be at least 8 characters';
+        if (!formData.adminId?.trim()) errors.adminId = 'Admin ID is required';
+        if (!formData.department?.trim()) errors.department = 'Department is required';
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -261,12 +248,13 @@ export default function AdminManagementPage() {
     const handleSubmitCreate = () => {
         if (!validateForm()) return;
         dispatch(createAdminUserManagementAsync({
+            email: formData.email!,
+            password: formData.password!,
             firstName: formData.firstName!,
             lastName: formData.lastName!,
-            email: formData.email!,
+            adminId: formData.adminId!,
+            department: formData.department!,
             phone: formData.phone,
-            adminLevel: formData.adminLevel || 'STANDARD',
-            department: formData.department,
         }));
         setCreateDialogOpen(false);
         setFormData({});
@@ -302,15 +290,6 @@ export default function AdminManagementPage() {
 
     const getStatusColor = (status: string) => STATUS_COLORS[status] || theme.palette.grey[500];
 
-    const activeAdmins = adminUsers.filter(a => a.status === 'ACTIVE').length;
-    const deletedAdmins = adminUsers.filter(a => a.status === 'DELETED').length;
-
-    const statsCards = [
-        { label: 'Total Admins', value: totalAdminUsers, icon: AdminPanelSettingsIcon, color: theme.palette.primary.main },
-        { label: 'Active', value: activeAdmins, icon: CheckCircleIcon, color: theme.palette.success.main },
-        { label: 'Deleted', value: deletedAdmins, icon: DeleteIcon, color: theme.palette.grey[600] },
-    ];
-
     return (
         <MotionBox variants={containerVariants} initial="hidden" animate="show" sx={{ maxWidth: 1600, mx: 'auto', px: { xs: 1, sm: 2, md: 0 } }}>
             {/* Header */}
@@ -320,141 +299,179 @@ export default function AdminManagementPage() {
                         <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2.125rem' } }} fontWeight={700} gutterBottom>Admin Management</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>Manage administrator accounts (Super Admin Exclusive)</Typography>
                     </Box>
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateAdmin} sx={{ borderRadius: 2 }} size={isMobile ? 'small' : 'medium'}>Create Admin</Button>
+                    <Stack direction="row" spacing={1}>
+                        <Tooltip title="Refresh">
+                            <IconButton onClick={handleRefresh} disabled={loading} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }, borderRadius: 100 }}>
+                                <RefreshIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateAdmin} sx={{ borderRadius: 1 }} size={isMobile ? 'small' : 'medium'}>
+                            Create Admin
+                        </Button>
+                    </Stack>
                 </Stack>
             </MotionBox>
 
-            {/* Stats Cards */}
-            <MotionBox variants={itemVariants} sx={{ mb: { xs: 2, sm: 3 } }}>
-                <Grid container spacing={{ xs: 1, sm: 1.5 }}>
-                    {statsCards.map((stat, index) => {
-                        const Icon = stat.icon;
-                        return (
-                            <Grid size={{ xs: 4 }} key={index}>
-                                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, height: '100%' }}>
-                                    <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
-                                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                                            <Box sx={{ width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 }, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(stat.color, 0.1), flexShrink: 0 }}>
-                                                <Icon sx={{ color: stat.color, fontSize: { xs: 18, sm: 20 } }} />
-                                            </Box>
-                                            <Box sx={{ minWidth: 0 }}>
-                                                <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.1rem' } }} fontWeight={700}>{stat.value}</Typography>
-                                                <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: { xs: '0.6rem', sm: '0.65rem' }, display: 'block' }}>{stat.label}</Typography>
-                                            </Box>
-                                        </Stack>
-                                    </CardContent>
-                                </MotionCard>
-                            </Grid>
-                        );
-                    })}
+            {/* Admin Users Grid - 4 columns */}
+            {loading && adminUsers.length === 0 ? (
+                <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
+                        <Grid size={{ xs: 6, sm: 6, md: 3 }} key={item}>
+                            <Card elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, height: '100%' }}>
+                                <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                                    <Stack spacing={1.5} alignItems="center">
+                                        <Skeleton variant="circular" width={64} height={64} />
+                                        <Skeleton variant="text" width="80%" height={24} />
+                                        <Skeleton variant="text" width="60%" height={16} />
+                                        <Skeleton variant="rounded" width={80} height={24} />
+                                    </Stack>
+                                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 2, pt: 1.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                                        <Skeleton variant="rounded" width={60} height={22} />
+                                        <Skeleton variant="text" width={50} height={16} />
+                                        <Skeleton variant="circular" width={28} height={28} />
+                                    </Stack>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    ))}
                 </Grid>
-            </MotionBox>
+            ) : adminUsers.length === 0 ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><Typography color="text.secondary">No admin users found</Typography></Box>
+            ) : (
+                <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
+                    {adminUsers.map((admin) => (
+                        <Grid size={{ xs: 6, sm: 6, md: 3 }} key={admin.id}>
+                            <MotionCard
+                                variants={itemVariants}
+                                whileHover={{ y: -4, boxShadow: theme.shadows[4] }}
+                                elevation={0}
+                                sx={{
+                                    borderRadius: 1,
+                                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                }}
+                            >
+                                <CardContent sx={{ p: { xs: 2, sm: 2.5 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                    {/* Top Section - Avatar, Name, Email, Role */}
+                                    <Stack spacing={1.5} alignItems="center" textAlign="center" sx={{ flex: 1 }}>
+                                        {/* Avatar */}
+                                        <Avatar
+                                            src={admin.profilePictureUrl || undefined}
+                                            sx={{
+                                                width: { xs: 56, sm: 64 },
+                                                height: { xs: 56, sm: 64 },
+                                                bgcolor: admin.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : theme.palette.error.main,
+                                                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            {admin.firstName?.[0]}{admin.lastName?.[0]}
+                                        </Avatar>
 
-            {/* Filters */}
-            <MotionCard variants={itemVariants} elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 2, md: 2 }} alignItems={{ md: 'center' }} justifyContent="space-between">
-                        <TextField placeholder="Search admins..." value={localSearchQuery} onChange={(e) => setLocalSearchQuery(e.target.value)} size="small" fullWidth sx={{ maxWidth: { md: 350 }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }} slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} /></InputAdornment> } }} />
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 2 }} alignItems={{ sm: 'center' }} sx={{ width: { xs: '100%', md: 'auto' } }}>
-                            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
-                                <InputLabel>Status</InputLabel>
-                                <Select value={statusFilter} label="Status" onChange={(e) => dispatch(setAdminStatusFilter(e.target.value))}>
-                                    <MenuItem value="">All Status</MenuItem>
-                                    <MenuItem value="ACTIVE">Active</MenuItem>
-                                    <MenuItem value="DEACTIVATED">Deactivated</MenuItem>
-                                    <MenuItem value="SUSPENDED">Suspended</MenuItem>
-                                    <MenuItem value="DELETED">Deleted</MenuItem>
-                                </Select>
-                            </FormControl>
-                            <Tooltip title="Refresh"><IconButton onClick={handleRefresh} disabled={loading} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }, borderRadius: 2, width: 40, height: 40 }}><RefreshIcon sx={{ fontSize: 20 }} /></IconButton></Tooltip>
-                        </Stack>
-                    </Stack>
-                </CardContent>
-            </MotionCard>
+                                        {/* Name & Email */}
+                                        <Box sx={{ width: '100%' }}>
+                                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }} noWrap>
+                                                {admin.fullName}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: { xs: '0.6rem', sm: '0.7rem' } }} noWrap>
+                                                {admin.email}
+                                            </Typography>
+                                        </Box>
 
-            {/* Admin Users List */}
-            <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-                ) : adminUsers.length === 0 ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><Typography color="text.secondary">No admin users found</Typography></Box>
-                ) : (
-                    <>
-                        {isMobile ? (
-                            <Box sx={{ p: 1.5 }}>
-                                <Stack spacing={1.5}>
-                                    {adminUsers.map((admin) => (
-                                        <Paper key={admin.id} elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                                            <Stack spacing={1.5}>
-                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                        <Avatar sx={{ bgcolor: theme.palette.error.main, width: 44, height: 44 }}>{admin.firstName?.[0]}{admin.lastName?.[0]}</Avatar>
-                                                        <Box>
-                                                            <Typography variant="body2" fontWeight={600}>{admin.fullName}</Typography>
-                                                            <Typography variant="caption" color="text.secondary">{admin.email}</Typography>
-                                                        </Box>
-                                                    </Stack>
-                                                    <IconButton size="small" onClick={(e) => handleMenuOpen(e, admin)}><MoreVertIcon /></IconButton>
-                                                </Stack>
-                                                <Stack direction="row" spacing={1}>
-                                                    <Chip label={admin.role === 'ROLE_SUPER_ADMIN' ? 'Super Admin' : 'Admin'} size="small" sx={{ bgcolor: alpha(theme.palette.error.main, 0.1), color: theme.palette.error.main, fontWeight: 500, fontSize: '0.7rem' }} />
-                                                    <Chip icon={getStatusIcon(admin.status) || undefined} label={STATUS_LABELS[admin.status]} size="small" sx={{ bgcolor: alpha(getStatusColor(admin.status), 0.1), color: getStatusColor(admin.status), fontWeight: 500, fontSize: '0.7rem', '& .MuiChip-icon': { color: 'inherit' } }} />
-                                                </Stack>
-                                            </Stack>
-                                        </Paper>
-                                    ))}
-                                </Stack>
-                            </Box>
-                        ) : (
-                            <TableContainer>
-                                <Table size={isTablet ? 'small' : 'medium'}>
-                                    <TableHead>
-                                        <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-                                            <TableCell sx={{ fontWeight: 600 }}>Admin</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, display: { xs: 'none', lg: 'table-cell' } }}>Department</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {adminUsers.map((admin) => (
-                                            <TableRow key={admin.id} hover>
-                                                <TableCell>
-                                                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                        <Avatar sx={{ bgcolor: theme.palette.error.main, width: 40, height: 40 }}>{admin.firstName?.[0]}{admin.lastName?.[0]}</Avatar>
-                                                        <Box>
-                                                            <Typography variant="body2" fontWeight={600}>{admin.fullName}</Typography>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ display: { md: 'none' } }}>{admin.email}</Typography>
-                                                        </Box>
-                                                    </Stack>
-                                                </TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}><Typography variant="body2">{admin.email}</Typography></TableCell>
-                                                <TableCell>
-                                                    <Chip icon={admin.role === 'ROLE_SUPER_ADMIN' ? <SupervisorAccountIcon /> : <AdminPanelSettingsIcon />} label={admin.role === 'ROLE_SUPER_ADMIN' ? 'Super Admin' : 'Admin'} size="small" sx={{ bgcolor: alpha(admin.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : '#EF4444', 0.1), color: admin.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : '#EF4444', fontWeight: 500, '& .MuiChip-icon': { color: 'inherit' } }} />
-                                                </TableCell>
-                                                <TableCell><Chip icon={getStatusIcon(admin.status) || undefined} label={STATUS_LABELS[admin.status]} size="small" sx={{ bgcolor: alpha(getStatusColor(admin.status), 0.1), color: getStatusColor(admin.status), fontWeight: 500, '& .MuiChip-icon': { color: 'inherit' } }} /></TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}><Typography variant="body2" color="text.secondary">{admin.department || 'N/A'}</Typography></TableCell>
-                                                <TableCell align="right"><IconButton size="small" onClick={(e) => handleMenuOpen(e, admin)}><MoreVertIcon /></IconButton></TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        )}
-                        <TablePagination component="div" count={totalAdminUsers} page={page} onPageChange={(_, p) => dispatch(setAdminCurrentPage(p))} rowsPerPage={rowsPerPage} onRowsPerPageChange={(e) => dispatch(setAdminPageSize(parseInt(e.target.value, 10)))} rowsPerPageOptions={isMobile ? [5, 10] : [5, 10, 25]} />
-                    </>
-                )}
-            </MotionCard>
+                                        {/* Role Chip */}
+                                        <Chip
+                                            icon={admin.role === 'ROLE_SUPER_ADMIN' ? <SupervisorAccountIcon /> : <AdminPanelSettingsIcon />}
+                                            label={admin.role === 'ROLE_SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
+                                            size="small"
+                                            sx={{
+                                                bgcolor: alpha(admin.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : '#EF4444', 0.1),
+                                                color: admin.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : '#EF4444',
+                                                fontWeight: 500,
+                                                fontSize: { xs: '0.6rem', sm: '0.65rem' },
+                                                height: 24,
+                                                '& .MuiChip-icon': { color: 'inherit', fontSize: 14 },
+                                            }}
+                                        />
+                                    </Stack>
+
+                                    {/* Bottom Section - Status, Department, Action in one line */}
+                                    <Stack
+                                        direction="row"
+                                        alignItems="center"
+                                        justifyContent="space-between"
+                                        sx={{
+                                            mt: 2,
+                                            pt: 1.5,
+                                            borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                                        }}
+                                    >
+                                        {/* Status Chip */}
+                                        <Chip
+                                            icon={getStatusIcon(admin.status) || undefined}
+                                            label={STATUS_LABELS[admin.status]}
+                                            size="small"
+                                            sx={{
+                                                bgcolor: alpha(getStatusColor(admin.status), 0.1),
+                                                color: getStatusColor(admin.status),
+                                                fontWeight: 500,
+                                                fontSize: { xs: '0.55rem', sm: '0.6rem' },
+                                                height: 22,
+                                                '& .MuiChip-icon': { color: 'inherit', fontSize: 12 },
+                                                '& .MuiChip-label': { px: 0.75 },
+                                            }}
+                                        />
+
+                                        {/* Department */}
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{
+                                                fontSize: { xs: '0.55rem', sm: '0.6rem' },
+                                                flex: 1,
+                                                textAlign: 'center',
+                                                px: 0.5,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {admin.department || '—'}
+                                        </Typography>
+
+                                        {/* Action Button */}
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => handleMenuOpen(e, admin)}
+                                            sx={{
+                                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+                                                width: 28,
+                                                height: 28,
+                                            }}
+                                        >
+                                            <MoreVertIcon sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                    </Stack>
+                                </CardContent>
+                            </MotionCard>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
 
             {/* Action Menu */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
                 <MenuItem onClick={handleViewAdmin}><VisibilityIcon sx={{ mr: 1.5, fontSize: 20 }} />View Details</MenuItem>
                 <MenuItem onClick={handleEditAdmin}><EditIcon sx={{ mr: 1.5, fontSize: 20 }} />Edit Admin</MenuItem>
                 <Divider />
-                {selectedAdmin?.status !== 'DELETED' && (<MenuItem onClick={() => handleStatusAction('softDelete')} sx={{ color: 'warning.main' }}><DeleteIcon sx={{ mr: 1.5, fontSize: 20 }} />Soft Delete</MenuItem>)}
-                {selectedAdmin?.status === 'DELETED' && (<MenuItem onClick={() => handleStatusAction('restore')} sx={{ color: 'success.main' }}><RestoreIcon sx={{ mr: 1.5, fontSize: 20 }} />Restore Admin</MenuItem>)}
+                {selectedAdmin?.status !== 'DELETED' && (
+                    <MenuItem onClick={() => handleStatusAction('softDelete')} sx={{ color: 'warning.main' }}><DeleteIcon sx={{ mr: 1.5, fontSize: 20 }} />Soft Delete</MenuItem>
+                )}
+                {selectedAdmin?.status === 'DELETED' && (
+                    <MenuItem onClick={() => handleStatusAction('restore')} sx={{ color: 'success.main' }}><RestoreIcon sx={{ mr: 1.5, fontSize: 20 }} />Restore Admin</MenuItem>
+                )}
                 <Divider />
                 <MenuItem onClick={() => handleStatusAction('permanentDelete')} sx={{ color: 'error.main' }}><DeleteForeverIcon sx={{ mr: 1.5, fontSize: 20 }} />Permanently Delete</MenuItem>
             </Menu>
@@ -463,25 +480,19 @@ export default function AdminManagementPage() {
             <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
                 <DialogTitle><Stack direction="row" alignItems="center" justifyContent="space-between"><Typography variant="h6" fontWeight={600}>Create Admin User</Typography><IconButton onClick={() => setCreateDialogOpen(false)} size="small"><CloseIcon /></IconButton></Stack></DialogTitle>
                 <DialogContent dividers>
-                    <Alert severity="info" sx={{ mb: 2 }}>Admin users have elevated privileges. A temporary password will be sent to their email.</Alert>
+                    <Alert severity="info" sx={{ mb: 2 }}>Admin users have elevated privileges. Please set a secure password.</Alert>
                     <Stack spacing={2}>
                         <Grid container spacing={2}>
                             <Grid size={{ xs: 12, sm: 6 }}><TextField label="First Name" fullWidth value={formData.firstName || ''} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} error={!!formErrors.firstName} helperText={formErrors.firstName} required /></Grid>
                             <Grid size={{ xs: 12, sm: 6 }}><TextField label="Last Name" fullWidth value={formData.lastName || ''} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} error={!!formErrors.lastName} helperText={formErrors.lastName} required /></Grid>
                         </Grid>
                         <TextField label="Email" fullWidth value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} error={!!formErrors.email} helperText={formErrors.email} required slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailIcon sx={{ color: 'text.secondary' }} /></InputAdornment> } }} />
+                        <TextField label="Password" type="password" fullWidth value={formData.password || ''} onChange={(e) => setFormData({ ...formData, password: e.target.value })} error={!!formErrors.password} helperText={formErrors.password || 'Minimum 8 characters'} required slotProps={{ input: { startAdornment: <InputAdornment position="start"><VpnKeyIcon sx={{ color: 'text.secondary' }} /></InputAdornment> } }} />
                         <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, sm: 6 }}><TextField label="Admin ID" fullWidth value={formData.adminId || ''} onChange={(e) => setFormData({ ...formData, adminId: e.target.value })} error={!!formErrors.adminId} helperText={formErrors.adminId} required slotProps={{ input: { startAdornment: <InputAdornment position="start"><BadgeIcon sx={{ color: 'text.secondary' }} /></InputAdornment> } }} /></Grid>
                             <Grid size={{ xs: 12, sm: 6 }}><TextField label="Phone" fullWidth value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} slotProps={{ input: { startAdornment: <InputAdornment position="start"><PhoneIcon sx={{ color: 'text.secondary' }} /></InputAdornment> } }} /></Grid>
-                            <Grid size={{ xs: 12, sm: 6 }}>
-                                <FormControl fullWidth><InputLabel>Admin Level</InputLabel>
-                                    <Select value={formData.adminLevel || 'STANDARD'} label="Admin Level" onChange={(e) => setFormData({ ...formData, adminLevel: e.target.value as 'STANDARD' | 'SENIOR' })}>
-                                        <MenuItem value="STANDARD">Standard Admin</MenuItem>
-                                        <MenuItem value="SENIOR">Senior Admin</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
                         </Grid>
-                        <TextField label="Department" fullWidth value={formData.department || ''} onChange={(e) => setFormData({ ...formData, department: e.target.value })} slotProps={{ input: { startAdornment: <InputAdornment position="start"><BusinessIcon sx={{ color: 'text.secondary' }} /></InputAdornment> } }} />
+                        <TextField label="Department" fullWidth value={formData.department || ''} onChange={(e) => setFormData({ ...formData, department: e.target.value })} error={!!formErrors.department} helperText={formErrors.department} required slotProps={{ input: { startAdornment: <InputAdornment position="start"><BusinessIcon sx={{ color: 'text.secondary' }} /></InputAdornment> } }} />
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5 }}><Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button><Button variant="contained" onClick={handleSubmitCreate} disabled={isCreating}>{isCreating ? <CircularProgress size={20} /> : 'Create Admin'}</Button></DialogActions>
@@ -512,19 +523,32 @@ export default function AdminManagementPage() {
                     {isAdminDetailLoading ? (<Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>) : selectedAdminDetail ? (
                         <Stack spacing={2}>
                             <Box sx={{ textAlign: 'center' }}>
-                                <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, bgcolor: theme.palette.error.main, fontSize: '2rem' }}>{selectedAdminDetail.firstName?.[0]}{selectedAdminDetail.lastName?.[0]}</Avatar>
+                                <Avatar
+                                    src={selectedAdminDetail.profilePictureUrl || undefined}
+                                    sx={{
+                                        width: 80,
+                                        height: 80,
+                                        mx: 'auto',
+                                        mb: 2,
+                                        bgcolor: selectedAdminDetail.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : theme.palette.error.main,
+                                        fontSize: '2rem',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {selectedAdminDetail.firstName?.[0]}{selectedAdminDetail.lastName?.[0]}
+                                </Avatar>
                                 <Typography variant="h6" fontWeight={600}>{selectedAdminDetail.fullName}</Typography>
                                 <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 1 }}>
-                                    <Chip label={selectedAdminDetail.role === 'ROLE_SUPER_ADMIN' ? 'Super Admin' : 'Admin'} size="small" sx={{ bgcolor: alpha(theme.palette.error.main, 0.1), color: theme.palette.error.main }} />
+                                    <Chip label={selectedAdminDetail.role === 'ROLE_SUPER_ADMIN' ? 'Super Admin' : 'Admin'} size="small" sx={{ bgcolor: alpha(selectedAdminDetail.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : theme.palette.error.main, 0.1), color: selectedAdminDetail.role === 'ROLE_SUPER_ADMIN' ? '#EC4899' : theme.palette.error.main }} />
                                     <Chip icon={getStatusIcon(selectedAdminDetail.status) || undefined} label={STATUS_LABELS[selectedAdminDetail.status]} size="small" sx={{ bgcolor: alpha(getStatusColor(selectedAdminDetail.status), 0.1), color: getStatusColor(selectedAdminDetail.status), '& .MuiChip-icon': { color: 'inherit' } }} />
                                 </Stack>
                             </Box>
                             <Divider />
                             <Grid container spacing={2}>
                                 <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><EmailIcon sx={{ color: 'text.secondary' }} /><Box><Typography variant="caption" color="text.secondary">Email</Typography><Typography variant="body2">{selectedAdminDetail.email}</Typography></Box></Stack></Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><PhoneIcon sx={{ color: 'text.secondary' }} /><Box><Typography variant="caption" color="text.secondary">Phone</Typography><Typography variant="body2">{selectedAdminDetail.phone || 'N/A'}</Typography></Box></Stack></Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><PhoneIcon sx={{ color: 'text.secondary' }} /><Box><Typography variant="caption" color="text.secondary">Phone</Typography><Typography variant="body2">{selectedAdminDetail.phone || selectedAdminDetail.phoneNumber || (selectedAdminDetail.roleSpecificData as Record<string, unknown>)?.phone as string || (selectedAdminDetail.roleSpecificData as Record<string, unknown>)?.phoneNumber as string || 'N/A'}</Typography></Box></Stack></Grid>
                                 <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><BadgeIcon sx={{ color: 'text.secondary' }} /><Box><Typography variant="caption" color="text.secondary">User ID</Typography><Typography variant="body2">{selectedAdminDetail.id}</Typography></Box></Stack></Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><BusinessIcon sx={{ color: 'text.secondary' }} /><Box><Typography variant="caption" color="text.secondary">Department</Typography><Typography variant="body2">{selectedAdminDetail.department || 'N/A'}</Typography></Box></Stack></Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}><Stack direction="row" spacing={1.5} alignItems="center"><BusinessIcon sx={{ color: 'text.secondary' }} /><Box><Typography variant="caption" color="text.secondary">Department</Typography><Typography variant="body2">{selectedAdminDetail.department || selectedAdminDetail.roleSpecificData?.department || 'N/A'}</Typography></Box></Stack></Grid>
                             </Grid>
                             <Divider />
                             <Grid container spacing={2}>

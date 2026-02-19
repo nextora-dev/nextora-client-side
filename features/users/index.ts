@@ -46,6 +46,29 @@ export {
 export * from './services';
 
 // ============================================================================
+// Redux Slice Exports
+// ============================================================================
+export {
+    default as userReducer,
+    fetchUserProfile,
+    updateUserProfile,
+    changePasswordAsync,
+    setProfile,
+    updateProfile,
+    clearProfile,
+    clearError as clearUserError,
+    clearPasswordChangeMessages,
+    setLoading,
+    selectUserProfile,
+    selectUserIsLoading,
+    selectUserError,
+    selectUserLastUpdated,
+    selectIsChangingPassword,
+    selectPasswordChangeError,
+    selectPasswordChangeSuccess,
+} from './userSlice';
+
+// ============================================================================
 // Legacy Exports (DEPRECATED - kept for backward compatibility)
 // These will be removed in future versions. Use unified types instead.
 // ============================================================================

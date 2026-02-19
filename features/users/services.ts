@@ -5,7 +5,7 @@ import { UserProfile, UserProfileResponse } from '@/features';
 export const USER_ENDPOINTS = {
     PROFILE: '/user/me',
     UPDATE_PROFILE: '/user/me',
-    CHANGE_PASSWORD: '/users/change-password'
+    CHANGE_PASSWORD: '/user/me/password'
 };
 
 /**
@@ -78,11 +78,36 @@ export async function updateProfile(data: UpdateProfilePayload): Promise<UserPro
     return response.data as unknown as UserProfile;
 }
 
+// Change Password Request Interface
+export interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}
+
+// Change Password Response Interface
+export interface ChangePasswordResponse {
+    success: boolean;
+    message: string;
+    timestamp: string;
+}
+
 /**
  * Change user password
+ * @param data - Current password, new password, and confirm password
+ * @returns Promise with success response
  */
-export async function changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
-    await apiClient.post(USER_ENDPOINTS.CHANGE_PASSWORD, data);
+export async function changePassword(data: ChangePasswordRequest): Promise<ChangePasswordResponse> {
+    const response = await apiClient.put<ChangePasswordResponse>(
+        USER_ENDPOINTS.CHANGE_PASSWORD,
+        data,
+        {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        }
+    );
+    return response.data;
 }
 
 
