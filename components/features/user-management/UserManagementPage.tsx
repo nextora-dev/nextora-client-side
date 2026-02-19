@@ -32,7 +32,6 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import SchoolIcon from '@mui/icons-material/School';
 import WorkIcon from '@mui/icons-material/Work';
 import EngineeringIcon from '@mui/icons-material/Engineering';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { ROLE_LABELS, RoleType } from '@/constants/roles';
 import { FACULTY, FACULTY_LABELS } from '@/constants/faculty';
@@ -160,15 +159,41 @@ export interface UserManagementPageProps {
     onClearSuccessMessage: () => void;
 }
 
+// Helper to get initials from name
+const getInitials = (firstName: string, lastName: string, fullName: string): string => {
+    // Try firstName + lastName first
+    if (firstName && lastName) {
+        return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    }
+    // Try firstName only
+    if (firstName) {
+        return firstName[0].toUpperCase();
+    }
+    // Try to extract from fullName
+    if (fullName) {
+        const parts = fullName.trim().split(' ').filter(p => p.length > 0);
+        if (parts.length >= 2) {
+            return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+        }
+        if (parts.length === 1) {
+            return parts[0][0].toUpperCase();
+        }
+    }
+    return '?';
+};
+
 // Helper to map backend User to display format
 const mapUserToDisplay = (user: User): UserDisplayItem => {
-    const nameParts = user.fullName.split(' ');
+    const nameParts = user.fullName?.trim().split(' ').filter(p => p.length > 0) || [];
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
     return {
         id: user.id,
         email: user.email,
-        fullName: user.fullName,
-        firstName: nameParts[0] || '',
-        lastName: nameParts.slice(1).join(' ') || '',
+        fullName: user.fullName || '',
+        firstName,
+        lastName,
         profilePictureUrl: user.profilePictureUrl,
         role: user.role,
         userType: user.userType,
@@ -273,9 +298,13 @@ export default function UserManagementPage({
 
     // Fetch data on mount
     useEffect(() => {
-        onFetchUsers();
         onFetchUserStats();
-    }, [onFetchUsers, onFetchUserStats]);
+    }, [onFetchUserStats]);
+
+    // Refetch users when search query or filters change
+    useEffect(() => {
+        onFetchUsers();
+    }, [onFetchUsers, searchQuery, roleFilter, statusFilter, page, rowsPerPage]);
 
     // Handle success messages
     useEffect(() => {
@@ -410,12 +439,6 @@ export default function UserManagementPage({
         setCreateDialogOpen(true);
     };
 
-    const handleCreateAdmin = () => {
-        setAdminFormData({ adminLevel: 'STANDARD' });
-        setFormErrors({});
-        setCreateAdminDialogOpen(true);
-    };
-
     const validateForm = (): boolean => {
         const errors: Record<string, string> = {};
         if (!formData.firstName?.trim()) errors.firstName = 'First name is required';
@@ -433,6 +456,10 @@ export default function UserManagementPage({
         if (!adminFormData.lastName?.trim()) errors.lastName = 'Last name is required';
         if (!adminFormData.email?.trim()) errors.email = 'Email is required';
         if (adminFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminFormData.email)) errors.email = 'Invalid email format';
+        if (!adminFormData.password?.trim()) errors.password = 'Password is required';
+        if (adminFormData.password && adminFormData.password.length < 8) errors.password = 'Password must be at least 8 characters';
+        if (!adminFormData.adminId?.trim()) errors.adminId = 'Admin ID is required';
+        if (!adminFormData.department?.trim()) errors.department = 'Department is required';
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -472,12 +499,13 @@ export default function UserManagementPage({
     const handleSubmitCreateAdmin = () => {
         if (!validateAdminForm() || !onCreateAdmin) return;
         const createData: CreateAdminRequest = {
+            email: adminFormData.email!,
+            password: adminFormData.password!,
             firstName: adminFormData.firstName!,
             lastName: adminFormData.lastName!,
-            email: adminFormData.email!,
+            adminId: adminFormData.adminId!,
+            department: adminFormData.department!,
             phone: adminFormData.phone,
-            adminLevel: adminFormData.adminLevel || 'STANDARD',
-            department: adminFormData.department,
         };
         onCreateAdmin(createData);
         setCreateAdminDialogOpen(false);
@@ -588,11 +616,6 @@ export default function UserManagementPage({
                         <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateUser} sx={{ borderRadius: 2 }} size={isMobile ? 'small' : 'medium'}>
                             Create User
                         </Button>
-                        {isSuperAdmin && onCreateAdmin && (
-                            <Button variant="contained" color="secondary" startIcon={<AdminPanelSettingsIcon />} onClick={handleCreateAdmin} sx={{ borderRadius: 2 }} size={isMobile ? 'small' : 'medium'}>
-                                Create Admin
-                            </Button>
-                        )}
                     </Stack>
                 </Stack>
             </MotionBox>
@@ -712,8 +735,8 @@ export default function UserManagementPage({
                                             <Stack spacing={1.5}>
                                                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                                                     <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                        <Avatar src={user.profilePictureUrl || undefined} sx={{ bgcolor: ROLE_COLORS[user.role] || theme.palette.primary.main, width: 44, height: 44 }}>
-                                                            {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                                                        <Avatar src={user.profilePictureUrl || undefined} sx={{ bgcolor: ROLE_COLORS[user.role] || theme.palette.primary.main, width: 44, height: 44, fontWeight: 600 }}>
+                                                            {getInitials(user.firstName, user.lastName, user.fullName)}
                                                         </Avatar>
                                                         <Box>
                                                             <Typography variant="body2" fontWeight={600}>{user.fullName}</Typography>
@@ -750,8 +773,8 @@ export default function UserManagementPage({
                                             <TableRow key={user.id} hover sx={{ '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) } }}>
                                                 <TableCell>
                                                     <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                        <Avatar src={user.profilePictureUrl || undefined} sx={{ bgcolor: ROLE_COLORS[user.role] || theme.palette.primary.main, width: { sm: 36, md: 40 }, height: { sm: 36, md: 40 } }}>
-                                                            {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                                                        <Avatar src={user.profilePictureUrl || undefined} sx={{ bgcolor: ROLE_COLORS[user.role] || theme.palette.primary.main, width: { sm: 36, md: 40 }, height: { sm: 36, md: 40 }, fontWeight: 600 }}>
+                                                            {getInitials(user.firstName, user.lastName, user.fullName)}
                                                         </Avatar>
                                                         <Box>
                                                             <Typography variant="body2" fontWeight={600} sx={{ fontSize: { sm: '0.8rem', md: '0.875rem' } }}>{user.fullName}</Typography>
@@ -817,15 +840,14 @@ export default function UserManagementPage({
                 {selectedUser?.status !== 'DELETED' && (
                     <MenuItem onClick={() => handleStatusAction('softDelete')} sx={{ color: 'warning.main' }}><DeleteIcon sx={{ mr: 1.5, fontSize: 20 }} />Soft Delete</MenuItem>
                 )}
-                {/* Super Admin Only */}
+                {/* Super Admin Only - Restore */}
                 {isSuperAdmin && selectedUser?.status === 'DELETED' && onRestoreUser && (
                     <MenuItem onClick={() => handleStatusAction('restore')} sx={{ color: 'success.main' }}><RestoreIcon sx={{ mr: 1.5, fontSize: 20 }} />Restore User</MenuItem>
                 )}
+                {/* Super Admin Only - Permanent Delete */}
+                {isSuperAdmin && onPermanentDeleteUser && <Divider />}
                 {isSuperAdmin && onPermanentDeleteUser && (
-                    <>
-                        <Divider />
-                        <MenuItem onClick={() => handleStatusAction('permanentDelete')} sx={{ color: 'error.main' }}><DeleteForeverIcon sx={{ mr: 1.5, fontSize: 20 }} />Permanently Delete</MenuItem>
-                    </>
+                    <MenuItem onClick={() => handleStatusAction('permanentDelete')} sx={{ color: 'error.main' }}><DeleteForeverIcon sx={{ mr: 1.5, fontSize: 20 }} />Permanently Delete</MenuItem>
                 )}
             </Menu>
 
@@ -944,26 +966,19 @@ export default function UserManagementPage({
                         </Stack>
                     </DialogTitle>
                     <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
-                        <Alert severity="info" sx={{ mb: 2 }}>Admin users have elevated privileges. A temporary password will be sent to their email.</Alert>
+                        <Alert severity="info" sx={{ mb: 2 }}>Admin users have elevated privileges. Please set a secure password.</Alert>
                         <Stack spacing={{ xs: 2, sm: 3 }}>
                             <Grid container spacing={2}>
                                 <Grid size={{ xs: 12, sm: 6 }}><TextField label="First Name" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.firstName || ''} onChange={(e) => setAdminFormData({ ...adminFormData, firstName: e.target.value })} error={!!formErrors.firstName} helperText={formErrors.firstName} required /></Grid>
                                 <Grid size={{ xs: 12, sm: 6 }}><TextField label="Last Name" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.lastName || ''} onChange={(e) => setAdminFormData({ ...adminFormData, lastName: e.target.value })} error={!!formErrors.lastName} helperText={formErrors.lastName} required /></Grid>
                             </Grid>
                             <TextField label="Email" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.email || ''} onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })} error={!!formErrors.email} helperText={formErrors.email} required />
+                            <TextField label="Password" type="password" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.password || ''} onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })} error={!!formErrors.password} helperText={formErrors.password || 'Minimum 8 characters'} required />
                             <Grid container spacing={2}>
+                                <Grid size={{ xs: 12, sm: 6 }}><TextField label="Admin ID" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.adminId || ''} onChange={(e) => setAdminFormData({ ...adminFormData, adminId: e.target.value })} error={!!formErrors.adminId} helperText={formErrors.adminId} required /></Grid>
                                 <Grid size={{ xs: 12, sm: 6 }}><TextField label="Phone" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.phone || ''} onChange={(e) => setAdminFormData({ ...adminFormData, phone: e.target.value })} /></Grid>
-                                <Grid size={{ xs: 12, sm: 6 }}>
-                                    <FormControl fullWidth size={isMobile ? 'small' : 'medium'}>
-                                        <InputLabel>Admin Level</InputLabel>
-                                        <Select value={adminFormData.adminLevel || 'STANDARD'} label="Admin Level" onChange={(e) => setAdminFormData({ ...adminFormData, adminLevel: e.target.value as 'STANDARD' | 'SENIOR' })}>
-                                            <MenuItem value="STANDARD">Standard Admin</MenuItem>
-                                            <MenuItem value="SENIOR">Senior Admin</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
                             </Grid>
-                            <TextField label="Department" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.department || ''} onChange={(e) => setAdminFormData({ ...adminFormData, department: e.target.value })} placeholder="e.g., IT Department" />
+                            <TextField label="Department" fullWidth size={isMobile ? 'small' : 'medium'} value={adminFormData.department || ''} onChange={(e) => setAdminFormData({ ...adminFormData, department: e.target.value })} error={!!formErrors.department} helperText={formErrors.department} required placeholder="e.g., IT Department" />
                         </Stack>
                     </DialogContent>
                     <DialogActions sx={{ p: 2.5 }}>
@@ -987,8 +1002,8 @@ export default function UserManagementPage({
                     ) : (
                         <Stack spacing={{ xs: 2, sm: 3 }} sx={{ pt: 1 }}>
                             <Box sx={{ textAlign: 'center' }}>
-                                <Avatar src={profilePicturePreview || undefined} sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mx: 'auto', mb: 2, bgcolor: ROLE_COLORS[editFormData.role || ''] || theme.palette.primary.main, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                                    {editFormData.firstName?.[0]}{editFormData.lastName?.[0]}
+                                <Avatar src={profilePicturePreview || undefined} sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mx: 'auto', mb: 2, bgcolor: ROLE_COLORS[editFormData.role || ''] || theme.palette.primary.main, fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 600 }}>
+                                    {getInitials(editFormData.firstName || '', editFormData.lastName || '', `${editFormData.firstName || ''} ${editFormData.lastName || ''}`)}
                                 </Avatar>
                                 <Typography variant="caption" color="text.secondary">Profile picture can only be changed by the user</Typography>
                             </Box>
@@ -1075,8 +1090,8 @@ export default function UserManagementPage({
                     ) : userDetail ? (
                         <Stack spacing={{ xs: 2, sm: 3 }} sx={{ pt: 1 }}>
                             <Box sx={{ textAlign: 'center' }}>
-                                <Avatar src={userDetail.profilePictureUrl || undefined} sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mx: 'auto', mb: 2, bgcolor: ROLE_COLORS[userDetail.role] || theme.palette.primary.main, fontSize: { xs: '1.5rem', sm: '2rem' } }}>
-                                    {userDetail.firstName?.[0] || ''}{userDetail.lastName?.[0] || ''}
+                                <Avatar src={userDetail.profilePictureUrl || undefined} sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mx: 'auto', mb: 2, bgcolor: ROLE_COLORS[userDetail.role] || theme.palette.primary.main, fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 600 }}>
+                                    {getInitials(userDetail.firstName, userDetail.lastName, userDetail.fullName)}
                                 </Avatar>
                                 <Typography variant="h6" fontWeight={600} sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>{userDetail.fullName}</Typography>
                                 <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 1 }}>

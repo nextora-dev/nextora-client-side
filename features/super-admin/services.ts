@@ -25,27 +25,30 @@ import {
 } from '@/features';
 
 const SUPER_ADMIN_ENDPOINTS = {
-    // User management endpoints (same as admin)
-    USERS: '/admin/user/get-all-users',
+    // Normal User Management endpoints (shared with admin)
+    USERS: '/admin/user',
     USER_BY_ID: (id: number) => `/admin/user/${id}`,
     ACTIVATE_USER: (id: number) => `/admin/user/${id}/activate`,
     DEACTIVATE_USER: (id: number) => `/admin/user/${id}/deactivate`,
     SUSPEND_USER: (id: number) => `/admin/user/${id}/suspend`,
     UNLOCK_USER: (id: number) => `/admin/user/${id}/unlock`,
-    SOFT_DELETE: (id: number) => `/admin/user/${id}`,
+    SOFT_DELETE_USER: (id: number) => `/admin/user/${id}`,
     SEARCH_USERS: '/admin/user/search',
     FILTER_USERS: '/admin/user/filter',
     USER_STATS: '/admin/user/stats',
-    // Super Admin only endpoints
+
+    // Super Admin only - Normal User privileged operations
+    RESTORE_NORMAL_USER: (userId: number) => `/super-admin/user/normal/${userId}/restore`,
+    PERMANENT_DELETE_NORMAL_USER: (userId: number) => `/super-admin/user/normal/${userId}/permanent`,
+
+    // Super Admin only - Admin User Management
     CREATE_ADMIN: '/super-admin/user/admin',
-    PERMANENT_DELETE: (id: number) => `/super-admin/user/${id}/permanent`,
-    RESTORE_USER: (id: number) => `/super-admin/user/${id}/restore`,
-    // Admin User Management (Super Admin Exclusive)
-    ADMIN_USERS: '/admin/admin-users',
-    ADMIN_USER_BY_ID: (adminId: number) => `/admin/admin-users/${adminId}`,
-    ADMIN_USER_SOFT_DELETE: (adminId: number) => `/admin/admin-users/${adminId}`,
-    ADMIN_USER_PERMANENT_DELETE: (adminId: number) => `/admin/admin-users/${adminId}/permanent`,
-    ADMIN_USER_RESTORE: (adminId: number) => `/admin/admin-users/${adminId}/restore`,
+    ADMIN_USERS: '/super-admin/user',
+    ADMIN_USER_BY_ID: (adminId: number) => `/super-admin/user/${adminId}`,
+    ADMIN_USER_UPDATE: (adminId: number) => `/super-admin/user/${adminId}`,
+    ADMIN_USER_SOFT_DELETE: (adminId: number) => `/super-admin/user/${adminId}`,
+    ADMIN_USER_PERMANENT_DELETE: (adminId: number) => `/super-admin/user/${adminId}/permanent`,
+    ADMIN_USER_RESTORE: (adminId: number) => `/super-admin/user/${adminId}/restore`,
 };
 
 // ============================================================================
@@ -122,21 +125,21 @@ export async function unlockUserSuperAdmin(id: number): Promise<ActionResponse> 
     return response.data;
 }
 
-// Soft delete user account
+// Soft delete user account (normal user)
 export async function softDeleteUserSuperAdmin(id: number): Promise<ActionResponse> {
-    const response = await apiClient.delete<ActionResponse>(SUPER_ADMIN_ENDPOINTS.SOFT_DELETE(id));
+    const response = await apiClient.delete<ActionResponse>(SUPER_ADMIN_ENDPOINTS.SOFT_DELETE_USER(id));
     return response.data;
 }
 
-// Restore soft-deleted user (Super Admin only)
+// Restore soft-deleted normal user (Super Admin only)
 export async function restoreUserSuperAdmin(id: number): Promise<ActionResponse> {
-    const response = await apiClient.put<ActionResponse>(SUPER_ADMIN_ENDPOINTS.RESTORE_USER(id));
+    const response = await apiClient.put<ActionResponse>(SUPER_ADMIN_ENDPOINTS.RESTORE_NORMAL_USER(id));
     return response.data;
 }
 
-// Permanently delete user (Super Admin only - irreversible)
+// Permanently delete normal user (Super Admin only - irreversible)
 export async function permanentDeleteUserSuperAdmin(id: number): Promise<PermanentDeleteResponse> {
-    const response = await apiClient.delete<PermanentDeleteResponse>(SUPER_ADMIN_ENDPOINTS.PERMANENT_DELETE(id));
+    const response = await apiClient.delete<PermanentDeleteResponse>(SUPER_ADMIN_ENDPOINTS.PERMANENT_DELETE_NORMAL_USER(id));
     return response.data;
 }
 
@@ -204,7 +207,7 @@ export async function updateAdminUser(adminId: number, data: UpdateAdminRequest)
         }
     });
     const response = await apiClient.put<UpdateAdminResponse>(
-        SUPER_ADMIN_ENDPOINTS.ADMIN_USER_BY_ID(adminId),
+        SUPER_ADMIN_ENDPOINTS.ADMIN_USER_UPDATE(adminId),
         cleanedData,
         { headers: { 'Content-Type': 'application/json' } }
     );

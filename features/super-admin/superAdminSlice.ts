@@ -7,6 +7,7 @@ import { RoleType, StatusType } from '@/constants';
 import {
     User, UserDetail, AllUsersResponse, UserDetailResponse, ActionResponse,
     CreateUserRequest, CreateUserResponse, UpdateUserRequest, UpdateUserResponse,
+    SearchUsersParams, FilterUsersParams, UserFilterParams,
 } from '../admin/types';
 import {
     CreateAdminRequest, CreateAdminResponse, PermanentDeleteResponse,
@@ -17,6 +18,7 @@ import {
     updateUserByIdSuperAdmin, activateUserSuperAdmin, deactivateUserSuperAdmin,
     suspendUserSuperAdmin, unlockUserSuperAdmin, softDeleteUserSuperAdmin,
     restoreUserSuperAdmin, permanentDeleteUserSuperAdmin, getSuperAdminUserStats,
+    searchUsersSuperAdmin, filterUsersSuperAdmin,
 } from './services';
 
 // Types
@@ -67,10 +69,59 @@ const extractErrorMessage = (error: unknown, fallback: string): string => {
     return fallback;
 };
 
+// Thunk params interface
+interface FetchUsersSuperAdminParams {
+    page?: number;
+    size?: number;
+    searchQuery?: string;
+    roleFilter?: RoleType | '';
+    statusFilter?: StatusType | '';
+}
+
 // Async Thunks
-export const fetchUsersSuperAdmin = createAsyncThunk<AllUsersResponse, { page?: number; size?: number; }>(
+export const fetchUsersSuperAdmin = createAsyncThunk<AllUsersResponse, FetchUsersSuperAdminParams | void>(
     'superAdmin/fetchUsers', async (params, { rejectWithValue }) => {
-        try { return await getAllUsersSuperAdmin({ page: params.page, size: params.size }); }
+        try {
+            const page = params?.page ?? 0;
+            const size = params?.size ?? 10;
+            const searchQuery = params?.searchQuery ?? '';
+            const roleFilter = params?.roleFilter ?? '';
+            const statusFilter = params?.statusFilter ?? '';
+
+            let response: AllUsersResponse;
+
+            // Use search endpoint if there's a search query
+            if (searchQuery.trim()) {
+                const searchParams: SearchUsersParams = {
+                    keyword: searchQuery.trim(),
+                    page,
+                    size,
+                };
+                response = await searchUsersSuperAdmin(searchParams);
+            }
+            // Use filter endpoint if there are filters applied
+            else if (roleFilter || statusFilter) {
+                const filterParams: FilterUsersParams = {
+                    roles: roleFilter ? [roleFilter] : undefined,
+                    statuses: statusFilter ? [statusFilter] : undefined,
+                    page,
+                    size,
+                };
+                response = await filterUsersSuperAdmin(filterParams);
+            }
+            // Default: get all users
+            else {
+                const defaultParams: UserFilterParams = {
+                    page,
+                    size,
+                    sortBy: 'id',
+                    sortDirection: 'DESC',
+                };
+                response = await getAllUsersSuperAdmin(defaultParams);
+            }
+
+            return response;
+        }
         catch (error) { return rejectWithValue(extractErrorMessage(error, 'Failed to fetch users')); }
     }
 );

@@ -44,7 +44,6 @@ import {
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SaveIcon from '@mui/icons-material/Save';
 import LockIcon from '@mui/icons-material/Lock';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -64,12 +63,18 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyIcon from '@mui/icons-material/Key';
-import ShieldIcon from '@mui/icons-material/Shield';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import LaptopIcon from '@mui/icons-material/Laptop';
-import TabletIcon from '@mui/icons-material/Tablet';
 import { useRouter, usePathname } from 'next/navigation';
 import { useProfile } from '@/hooks/useProfile';
+import { useAppDispatch, useAppSelector } from '@/store';
+import {
+    changePasswordAsync,
+    clearPasswordChangeMessages,
+    selectIsChangingPassword,
+    selectPasswordChangeError,
+    selectPasswordChangeSuccess,
+} from '@/features/users';
 
 const MotionCard = motion.create(Card);
 const MotionBox = motion.create(Box);
@@ -116,11 +121,17 @@ interface UnifiedSettingsPageProps {
     basePath?: string;
 }
 
-export default function UnifiedSettingsPage({ basePath }: UnifiedSettingsPageProps) {
+export default function UnifiedSettingsPage(_props: UnifiedSettingsPageProps) {
     const router = useRouter();
     const pathname = usePathname();
     const theme = useTheme();
+    const dispatch = useAppDispatch();
     const { profile } = useProfile({ forceRefresh: true });
+
+    // Redux selectors for password change
+    const isChangingPassword = useAppSelector(selectIsChangingPassword);
+    const passwordChangeError = useAppSelector(selectPasswordChangeError);
+    const passwordChangeSuccess = useAppSelector(selectPasswordChangeSuccess);
 
     const profilePath = pathname.replace('/settings', '');
 
@@ -129,7 +140,6 @@ export default function UnifiedSettingsPage({ basePath }: UnifiedSettingsPagePro
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
     const [changePasswordDialog, setChangePasswordDialog] = useState(false);
     const [deleteAccountDialog, setDeleteAccountDialog] = useState(false);
-    const [enable2FADialog, setEnable2FADialog] = useState(false);
     const [logoutSessionDialog, setLogoutSessionDialog] = useState<string | null>(null);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
@@ -213,21 +223,44 @@ export default function UnifiedSettingsPage({ basePath }: UnifiedSettingsPagePro
     };
 
     const handleChangePassword = async () => {
-        if (!passwordForm.currentPassword || passwordForm.newPassword.length < 8) {
-            setSnackbar({ open: true, message: 'Password must be at least 8 characters', severity: 'error' });
+        // Client-side validation
+        if (!passwordForm.currentPassword) {
+            setSnackbar({ open: true, message: 'Current password is required', severity: 'error' });
+            return;
+        }
+        if (passwordForm.newPassword.length < 8) {
+            setSnackbar({ open: true, message: 'New password must be at least 8 characters', severity: 'error' });
             return;
         }
         if (passwordForm.newPassword !== passwordForm.confirmPassword) {
             setSnackbar({ open: true, message: 'Passwords do not match', severity: 'error' });
             return;
         }
-        setSaving(true);
-        await new Promise(r => setTimeout(r, 1500));
-        setChangePasswordDialog(false);
-        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setSnackbar({ open: true, message: 'Password changed successfully!', severity: 'success' });
-        setSaving(false);
+
+        // Dispatch Redux action
+        dispatch(changePasswordAsync({
+            currentPassword: passwordForm.currentPassword,
+            newPassword: passwordForm.newPassword,
+            confirmPassword: passwordForm.confirmPassword,
+        }));
     };
+
+    // Handle password change success/error from Redux
+    useEffect(() => {
+        if (passwordChangeSuccess) {
+            setChangePasswordDialog(false);
+            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            setSnackbar({ open: true, message: passwordChangeSuccess, severity: 'success' });
+            dispatch(clearPasswordChangeMessages());
+        }
+    }, [passwordChangeSuccess, dispatch]);
+
+    useEffect(() => {
+        if (passwordChangeError) {
+            setSnackbar({ open: true, message: passwordChangeError, severity: 'error' });
+            dispatch(clearPasswordChangeMessages());
+        }
+    }, [passwordChangeError, dispatch]);
 
     const handleLogoutSession = async (id: string) => {
         setSaving(true);
@@ -494,26 +527,86 @@ export default function UnifiedSettingsPage({ basePath }: UnifiedSettingsPagePro
             </Grid>
 
             {/* Change Password Dialog */}
-            <Dialog open={changePasswordDialog} onClose={() => !saving && setChangePasswordDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Change Password</DialogTitle>
+            <Dialog open={changePasswordDialog} onClose={() => !isChangingPassword && setChangePasswordDialog(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
+                            <LockIcon sx={{ color: 'primary.main' }} />
+                        </Box>
+                        <Typography variant="h6" fontWeight={600}>Change Password</Typography>
+                    </Stack>
+                </DialogTitle>
                 <DialogContent>
                     <Stack spacing={3} sx={{ mt: 2 }}>
-                        <TextField label="Current Password" type={showCurrentPassword ? 'text' : 'password'} fullWidth value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))} InputProps={{ endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowCurrentPassword(!showCurrentPassword)}>{showCurrentPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}</IconButton></InputAdornment> }} />
+                        <Alert severity="info" sx={{ borderRadius: 2 }}>
+                            Your password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters for better security.
+                        </Alert>
+                        <TextField
+                            label="Current Password"
+                            type={showCurrentPassword ? 'text' : 'password'}
+                            fullWidth
+                            value={passwordForm.currentPassword}
+                            onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
+                            disabled={isChangingPassword}
+                            slotProps={{
+                                input: {
+                                    startAdornment: <InputAdornment position="start"><KeyIcon color="action" /></InputAdornment>,
+                                    endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowCurrentPassword(!showCurrentPassword)} disabled={isChangingPassword}>{showCurrentPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}</IconButton></InputAdornment>
+                                }
+                            }}
+                        />
                         <Box>
-                            <TextField label="New Password" type={showNewPassword ? 'text' : 'password'} fullWidth value={passwordForm.newPassword} onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))} InputProps={{ endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowNewPassword(!showNewPassword)}>{showNewPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}</IconButton></InputAdornment> }} />
+                            <TextField
+                                label="New Password"
+                                type={showNewPassword ? 'text' : 'password'}
+                                fullWidth
+                                value={passwordForm.newPassword}
+                                onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
+                                disabled={isChangingPassword}
+                                slotProps={{
+                                    input: {
+                                        startAdornment: <InputAdornment position="start"><LockIcon color="action" /></InputAdornment>,
+                                        endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowNewPassword(!showNewPassword)} disabled={isChangingPassword}>{showNewPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}</IconButton></InputAdornment>
+                                    }
+                                }}
+                            />
                             {passwordForm.newPassword && (
-                                <Box sx={{ mt: 1 }}>
-                                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}><Typography variant="caption">Strength</Typography><Typography variant="caption" sx={{ color: passwordStrength.color, fontWeight: 600 }}>{passwordStrength.label}</Typography></Stack>
-                                    <LinearProgress variant="determinate" value={passwordStrength.score} sx={{ height: 6, borderRadius: 1, '& .MuiLinearProgress-bar': { bgcolor: passwordStrength.color } }} />
+                                <Box sx={{ mt: 1.5 }}>
+                                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                                        <Typography variant="caption" color="text.secondary">Password Strength</Typography>
+                                        <Typography variant="caption" sx={{ color: passwordStrength.color, fontWeight: 600 }}>{passwordStrength.label}</Typography>
+                                    </Stack>
+                                    <LinearProgress variant="determinate" value={passwordStrength.score} sx={{ height: 8, borderRadius: 1, bgcolor: alpha(theme.palette.grey[500], 0.2), '& .MuiLinearProgress-bar': { bgcolor: passwordStrength.color, borderRadius: 1 } }} />
                                 </Box>
                             )}
                         </Box>
-                        <TextField label="Confirm Password" type="password" fullWidth value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))} error={passwordForm.confirmPassword.length > 0 && passwordForm.newPassword !== passwordForm.confirmPassword} helperText={passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword ? 'Passwords do not match' : ''} />
+                        <TextField
+                            label="Confirm New Password"
+                            type="password"
+                            fullWidth
+                            value={passwordForm.confirmPassword}
+                            onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                            disabled={isChangingPassword}
+                            error={passwordForm.confirmPassword.length > 0 && passwordForm.newPassword !== passwordForm.confirmPassword}
+                            helperText={passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword ? 'Passwords do not match' : ''}
+                            slotProps={{
+                                input: {
+                                    startAdornment: <InputAdornment position="start"><CheckCircleIcon color={passwordForm.confirmPassword && passwordForm.newPassword === passwordForm.confirmPassword ? 'success' : 'action'} /></InputAdornment>,
+                                }
+                            }}
+                        />
                     </Stack>
                 </DialogContent>
-                <DialogActions sx={{ p: 3 }}>
-                    <Button onClick={() => setChangePasswordDialog(false)} disabled={saving}>Cancel</Button>
-                    <Button variant="contained" onClick={handleChangePassword} disabled={saving} startIcon={saving ? <CircularProgress size={20} color="inherit" /> : null}>{saving ? 'Changing...' : 'Change Password'}</Button>
+                <DialogActions sx={{ p: 3, pt: 2 }}>
+                    <Button onClick={() => setChangePasswordDialog(false)} disabled={isChangingPassword}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleChangePassword}
+                        disabled={isChangingPassword || !passwordForm.currentPassword || passwordForm.newPassword.length < 8 || passwordForm.newPassword !== passwordForm.confirmPassword}
+                        startIcon={isChangingPassword ? <CircularProgress size={20} color="inherit" /> : <LockIcon />}
+                    >
+                        {isChangingPassword ? 'Changing Password...' : 'Change Password'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 

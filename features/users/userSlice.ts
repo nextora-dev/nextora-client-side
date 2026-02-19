@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { getProfile } from './services';
+import { getProfile, changePassword, ChangePasswordRequest, ChangePasswordResponse } from './services';
 import { UserProfile } from '@/features';
 
 // ============================================================================
@@ -9,7 +9,10 @@ import { UserProfile } from '@/features';
 interface UserState {
     profile: UserProfile | null;
     isLoading: boolean;
+    isChangingPassword: boolean;
     error: string | null;
+    passwordChangeError: string | null;
+    passwordChangeSuccess: string | null;
     lastUpdated: string | null;
 }
 
@@ -20,7 +23,10 @@ interface UserState {
 const initialState: UserState = {
     profile: null,
     isLoading: false,
+    isChangingPassword: false,
     error: null,
+    passwordChangeError: null,
+    passwordChangeSuccess: null,
     lastUpdated: null,
 };
 
@@ -89,6 +95,27 @@ export const updateUserProfile = createAsyncThunk<UserProfile, Partial<UserProfi
     }
 );
 
+// Change password thunk
+export const changePasswordAsync = createAsyncThunk<ChangePasswordResponse, ChangePasswordRequest>(
+    'user/changePassword',
+    async (data, { rejectWithValue }) => {
+        try {
+            const response = await changePassword(data);
+            return response;
+        } catch (error: unknown) {
+            // Extract error message from API response
+            if (error && typeof error === 'object' && 'response' in error) {
+                const apiError = error as { response?: { data?: { message?: string } } };
+                if (apiError.response?.data?.message) {
+                    return rejectWithValue(apiError.response.data.message);
+                }
+            }
+            const errorMessage = error instanceof Error ? error.message : 'Failed to change password';
+            return rejectWithValue(errorMessage);
+        }
+    }
+);
+
 // ============================================================================
 // User Slice
 // ============================================================================
@@ -118,6 +145,11 @@ const userSlice = createSlice({
         // Clear error
         clearError: (state) => {
             state.error = null;
+        },
+        // Clear password change messages
+        clearPasswordChangeMessages: (state) => {
+            state.passwordChangeError = null;
+            state.passwordChangeSuccess = null;
         },
         // Set loading state
         setLoading: (state, action: PayloadAction<boolean>) => {
@@ -156,6 +188,22 @@ const userSlice = createSlice({
                 state.error = action.payload as string;
                 state.isLoading = false;
             });
+
+        // Change password
+        builder
+            .addCase(changePasswordAsync.pending, (state) => {
+                state.isChangingPassword = true;
+                state.passwordChangeError = null;
+                state.passwordChangeSuccess = null;
+            })
+            .addCase(changePasswordAsync.fulfilled, (state, action) => {
+                state.isChangingPassword = false;
+                state.passwordChangeSuccess = action.payload.message || 'Password changed successfully!';
+            })
+            .addCase(changePasswordAsync.rejected, (state, action) => {
+                state.isChangingPassword = false;
+                state.passwordChangeError = action.payload as string;
+            });
     },
 });
 
@@ -167,10 +215,13 @@ export const selectUserProfile = (state: { user: UserState }) => state.user.prof
 export const selectUserIsLoading = (state: { user: UserState }) => state.user.isLoading;
 export const selectUserError = (state: { user: UserState }) => state.user.error;
 export const selectUserLastUpdated = (state: { user: UserState }) => state.user.lastUpdated;
+export const selectIsChangingPassword = (state: { user: UserState }) => state.user.isChangingPassword;
+export const selectPasswordChangeError = (state: { user: UserState }) => state.user.passwordChangeError;
+export const selectPasswordChangeSuccess = (state: { user: UserState }) => state.user.passwordChangeSuccess;
 
 // ============================================================================
 // Exports
 // ============================================================================
 
-export const { setProfile, updateProfile, clearProfile, clearError, setLoading } = userSlice.actions;
+export const { setProfile, updateProfile, clearProfile, clearError, clearPasswordChangeMessages, setLoading } = userSlice.actions;
 export default userSlice.reducer;

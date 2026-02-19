@@ -1,5 +1,7 @@
 /**
  * Admin User Management Services
+ * For managing normal users (Student, Academic Staff, Non-Academic Staff)
+ * Base Path: /api/v1/admin/user
  */
 import apiClient from '@/lib/api-client';
 import {
@@ -17,14 +19,14 @@ import {
 } from '@/features';
 
 const ADMIN_USER_ENDPOINTS = {
+    // Normal User Management - Admin/Super Admin can access
     USERS: '/admin/user',
     USER_BY_ID: (id: number) => `/admin/user/${id}`,
     ACTIVATE_USER: (id: number) => `/admin/user/${id}/activate`,
     DEACTIVATE_USER: (id: number) => `/admin/user/${id}/deactivate`,
-    SUSPENDED_USER: (id: number) => `/admin/user/${id}/suspend`,
+    SUSPEND_USER: (id: number) => `/admin/user/${id}/suspend`,
     UNLOCK_USER: (id: number) => `/admin/user/${id}/unlock`,
-    RESTORE_USER: (id: number) => `/admin/user/${id}/restore`,
-    PERMANENT_DELETE: (id: number) => `/admin/user/${id}/permanent`,
+    RESET_PASSWORD: (id: number) => `/admin/user/${id}/reset-password`,
     SEARCH_USERS: '/admin/user/search',
     FILTER_USERS: '/admin/user/filter',
     USER_STATS: '/admin/user/stats',
@@ -88,7 +90,7 @@ export async function deactivateUser(id: number): Promise<ActionResponse> {
 
 // Suspend user account
 export async function suspendUser(id: number): Promise<ActionResponse> {
-    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.SUSPENDED_USER(id));
+    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.SUSPEND_USER(id));
     return response.data;
 }
 
@@ -101,18 +103,6 @@ export async function unlockUser(id: number): Promise<ActionResponse> {
 // Soft delete user account
 export async function softDeleteUser(id: number): Promise<ActionResponse> {
     const response = await apiClient.delete<ActionResponse>(ADMIN_USER_ENDPOINTS.USER_BY_ID(id));
-    return response.data;
-}
-
-// Restore deleted user account
-export async function restoreUser(id: number): Promise<ActionResponse> {
-    const response = await apiClient.put<ActionResponse>(ADMIN_USER_ENDPOINTS.RESTORE_USER(id));
-    return response.data;
-}
-
-// Permanently delete user account (irreversible)
-export async function permanentDeleteUser(id: number): Promise<ActionResponse> {
-    const response = await apiClient.delete<ActionResponse>(ADMIN_USER_ENDPOINTS.PERMANENT_DELETE(id));
     return response.data;
 }
 
