@@ -5,8 +5,9 @@
  * @description Modern SaaS-style dashboard for student users
  */
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Divider, IconButton, Avatar, LinearProgress, Button } from '@mui/material';
+import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Divider, IconButton, Avatar, LinearProgress, Button, alpha, CircularProgress, Skeleton } from '@mui/material';
 import { motion } from 'framer-motion';
 import SchoolIcon from '@mui/icons-material/School';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -26,7 +27,28 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import EventIcon from '@mui/icons-material/Event';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import DescriptionIcon from '@mui/icons-material/Description';
+import AddIcon from '@mui/icons-material/Add';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VideoCallIcon from '@mui/icons-material/VideoCall';
+import StarIcon from '@mui/icons-material/Star';
 import { useAuth, useDashboard } from '@/hooks';
+import { useAppDispatch, useAppSelector } from '@/store';
+import {
+    fetchUpcomingSessions,
+    checkIsKuppiStudentAsync,
+    fetchMyAnalytics,
+    fetchNotes,
+    selectKuppiSessions,
+    selectKuppiIsKuppiStudent,
+    selectKuppiMyAnalytics,
+    selectKuppiIsLoading,
+    selectKuppiTotalSessions,
+    selectKuppiNotes,
+    selectKuppiTotalNotes,
+    selectKuppiIsNoteLoading,
+} from '@/features/kuppi';
 
 // ============================================================================
 // Animation Configuration
@@ -91,6 +113,50 @@ const RECENT_ACTIVITY = [
 export default function StudentDashboardPage() {
     const router = useRouter();
     const { user } = useAuth();
+    const dispatch = useAppDispatch();
+
+    // Kuppi state from Redux
+    const upcomingSessions = useAppSelector(selectKuppiSessions);
+    const isKuppiStudent = useAppSelector(selectKuppiIsKuppiStudent);
+    const myAnalytics = useAppSelector(selectKuppiMyAnalytics);
+    const kuppiLoading = useAppSelector(selectKuppiIsLoading);
+    const totalSessions = useAppSelector(selectKuppiTotalSessions);
+    const recentNotes = useAppSelector(selectKuppiNotes);
+    const totalNotes = useAppSelector(selectKuppiTotalNotes);
+    const notesLoading = useAppSelector(selectKuppiIsNoteLoading);
+
+    // Fetch Kuppi data on mount
+    useEffect(() => {
+        dispatch(checkIsKuppiStudentAsync());
+        dispatch(fetchUpcomingSessions({ page: 0, size: 3 }));
+        dispatch(fetchNotes({ page: 0, size: 4 })); // Fetch recent notes for dashboard
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (isKuppiStudent) {
+            dispatch(fetchMyAnalytics());
+        }
+    }, [dispatch, isKuppiStudent]);
+
+    // Kuppi quick actions for students
+    const getKuppiActions = () => {
+        if (isKuppiStudent) {
+            return [
+                { icon: VideoCallIcon, label: 'My Sessions', count: myAnalytics?.totalSessions ?? 0, path: '/student/kuppi', color: '#3B82F6', description: 'Your sessions' },
+                { icon: AddIcon, label: 'Create Session', count: null, path: '/student/kuppi/create', color: '#10B981', description: 'Host a session' },
+                { icon: CloudUploadIcon, label: 'Upload Notes', count: myAnalytics?.totalNotes ?? 0, path: '/student/kuppi/notes', color: '#8B5CF6', description: 'Share materials' },
+                { icon: VisibilityIcon, label: 'Total Views', count: myAnalytics?.totalSessionViews ?? 0, path: '/student/kuppi', color: '#F59E0B', description: 'Session views' },
+            ];
+        }
+        return [
+            { icon: AutoStoriesIcon, label: 'Browse Sessions', count: totalSessions, path: '/student/kuppi', color: '#3B82F6', description: 'Find sessions' },
+            { icon: DescriptionIcon, label: 'Study Notes', count: null, path: '/student/kuppi/notes', color: '#10B981', description: 'Download notes' },
+            { icon: StarIcon, label: 'Become Host', count: null, path: '/student/kuppi/hosts', color: '#EC4899', description: 'Apply to host' },
+            { icon: SearchIcon, label: 'Search', count: null, path: '/student/kuppi', color: '#F59E0B', description: 'Find by subject' },
+        ];
+    };
+
+    const kuppiActions = getKuppiActions();
 
     const handleNavigation = (path: string) => router.push(path);
 
@@ -201,6 +267,203 @@ export default function StudentDashboardPage() {
                         );
                     })}
                 </Grid>
+            </MotionBox>
+
+            {/* Kuppi Section */}
+            <MotionBox variants={itemVariants} sx={{ mb: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <AutoStoriesIcon sx={{ color: '#EC4899' }} />
+                        <Typography variant="h6" fontWeight={600} sx={{ color: 'text.primary' }}>
+                            {isKuppiStudent ? 'Your Kuppi Dashboard' : 'Kuppi Sessions'}
+                        </Typography>
+                        {isKuppiStudent && (
+                            <Chip label="Kuppi Host" size="small" sx={{ bgcolor: alpha('#EC4899', 0.1), color: '#EC4899' }} />
+                        )}
+                    </Stack>
+                    <Button
+                        size="small"
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => handleNavigation('/student/kuppi')}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        {isKuppiStudent ? 'Manage' : 'Browse All'}
+                    </Button>
+                </Stack>
+
+                <Grid container spacing={2}>
+                    {kuppiActions.map((action, index) => {
+                        const Icon = action.icon;
+                        return (
+                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                                <MotionCard
+                                    whileHover={{ y: -4 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => handleNavigation(action.path)}
+                                    sx={{
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        transition: 'all 0.2s ease',
+                                        '&:hover': {
+                                            borderColor: action.color,
+                                            boxShadow: `0 8px 24px -8px ${action.color}40`,
+                                        },
+                                    }}
+                                >
+                                    <CardContent sx={{ p: 2 }}>
+                                        <Stack spacing={1.5}>
+                                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                                <Box
+                                                    sx={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 2,
+                                                        bgcolor: alpha(action.color, 0.1),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                    }}
+                                                >
+                                                    <Icon sx={{ color: action.color, fontSize: 22 }} />
+                                                </Box>
+                                                {action.count !== null && (
+                                                    kuppiLoading ? (
+                                                        <CircularProgress size={18} />
+                                                    ) : (
+                                                        <Typography variant="h6" fontWeight={700} sx={{ color: action.color }}>
+                                                            {action.count}
+                                                        </Typography>
+                                                    )
+                                                )}
+                                            </Stack>
+                                            <Box>
+                                                <Typography variant="subtitle2" fontWeight={600} sx={{ color: 'text.primary' }}>{action.label}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{action.description}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </CardContent>
+                                </MotionCard>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+
+                {/* Upcoming Sessions Preview for Normal Students */}
+                {!isKuppiStudent && upcomingSessions.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>Upcoming Sessions</Typography>
+                        <Stack direction="row" spacing={2} sx={{ overflowX: 'auto', pb: 1 }}>
+                            {upcomingSessions.slice(0, 3).map((session) => (
+                                <Paper
+                                    key={session.id}
+                                    variant="outlined"
+                                    onClick={() => handleNavigation(`/student/kuppi/${session.id}`)}
+                                    sx={{
+                                        p: 2,
+                                        minWidth: 240,
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                                    }}
+                                >
+                                    <Typography fontWeight={600} sx={{ mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {session.title}
+                                    </Typography>
+                                    <Chip label={session.subject} size="small" sx={{ mb: 1 }} />
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(session.scheduledStartTime).toLocaleDateString()}
+                                        </Typography>
+                                    </Stack>
+                                </Paper>
+                            ))}
+                        </Stack>
+                    </Box>
+                )}
+            </MotionBox>
+
+            {/* Recent Notes Section */}
+            <MotionBox variants={itemVariants} sx={{ mb: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <DescriptionIcon sx={{ color: '#10B981' }} />
+                        <Typography variant="h6" fontWeight={600} sx={{ color: 'text.primary' }}>
+                            Recent Study Notes
+                        </Typography>
+                        {totalNotes > 0 && (
+                            <Chip label={`${totalNotes} notes`} size="small" sx={{ bgcolor: alpha('#10B981', 0.1), color: '#10B981' }} />
+                        )}
+                    </Stack>
+                    <Button
+                        size="small"
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => handleNavigation('/student/kuppi/notes')}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        View All
+                    </Button>
+                </Stack>
+
+                {notesLoading ? (
+                    <Grid container spacing={2}>
+                        {[1, 2, 3, 4].map((i) => (
+                            <Grid size={{ xs: 6, sm: 3 }} key={i}>
+                                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: 120 }}>
+                                    <CircularProgress size={24} />
+                                </Paper>
+                            </Grid>
+                        ))}
+                    </Grid>
+                ) : recentNotes.length === 0 ? (
+                    <Paper variant="outlined" sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
+                        <DescriptionIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                        <Typography color="text.secondary">No notes available yet</Typography>
+                        <Button size="small" sx={{ mt: 1 }} onClick={() => handleNavigation('/student/kuppi/notes')}>
+                            Browse Notes
+                        </Button>
+                    </Paper>
+                ) : (
+                    <Grid container spacing={2}>
+                        {recentNotes.slice(0, 4).map((note) => (
+                            <Grid size={{ xs: 6, sm: 3 }} key={note.id}>
+                                <MotionCard
+                                    whileHover={{ y: -4 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => handleNavigation('/student/kuppi/notes')}
+                                    sx={{
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        transition: 'all 0.2s ease',
+                                        '&:hover': {
+                                            borderColor: '#10B981',
+                                            boxShadow: '0 8px 24px -8px rgba(16, 185, 129, 0.3)',
+                                        },
+                                    }}
+                                >
+                                    <CardContent sx={{ p: 2 }}>
+                                        <Stack spacing={1}>
+                                            <Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: alpha('#10B981', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <DescriptionIcon sx={{ color: '#10B981', fontSize: 20 }} />
+                                            </Box>
+                                            <Typography variant="subtitle2" fontWeight={600} sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {note.title}
+                                            </Typography>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <VisibilityIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
+                                                <Typography variant="caption" color="text.secondary">{note.viewCount ?? 0} views</Typography>
+                                            </Stack>
+                                        </Stack>
+                                    </CardContent>
+                                </MotionCard>
+                            </Grid>
+                        ))}
+                    </Grid>
+                )}
             </MotionBox>
 
             {/* Main Content Grid */}

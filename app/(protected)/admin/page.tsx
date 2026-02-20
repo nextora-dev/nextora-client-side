@@ -1,15 +1,30 @@
 'use client';
 
-import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Button } from '@mui/material';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Button, alpha, IconButton, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
 import PeopleIcon from '@mui/icons-material/People';
 import EventIcon from '@mui/icons-material/Event';
 import SchoolIcon from '@mui/icons-material/School';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PendingIcon from '@mui/icons-material/Pending';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useAuth } from '@/hooks/useAuth';
-import {useEffect} from "react";
-import {getAllUsers} from "@/features";
+import { useAppDispatch, useAppSelector } from '@/store';
+import {
+    adminFetchApplicationStats,
+    adminFetchPlatformStats,
+    selectKuppiApplicationStats,
+    selectKuppiPlatformStats,
+    selectKuppiIsLoading,
+} from '@/features/kuppi';
 
 const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -39,6 +54,55 @@ const PENDING_APPROVALS = [
 
 export default function AdminDashboardPage() {
     const { user } = useAuth();
+    const router = useRouter();
+    const dispatch = useAppDispatch();
+
+    // Kuppi stats from Redux
+    const applicationStats = useAppSelector(selectKuppiApplicationStats);
+    const platformStats = useAppSelector(selectKuppiPlatformStats);
+    const kuppiLoading = useAppSelector(selectKuppiIsLoading);
+
+    // Fetch Kuppi stats on mount
+    useEffect(() => {
+        dispatch(adminFetchApplicationStats());
+        dispatch(adminFetchPlatformStats());
+    }, [dispatch]);
+
+    // Kuppi quick actions
+    const kuppiActions = [
+        {
+            icon: PendingIcon,
+            title: 'Pending Applications',
+            count: applicationStats?.pendingApplications ?? 0,
+            color: '#F59E0B',
+            action: () => router.push('/admin/kuppi'),
+            description: 'Review applications',
+        },
+        {
+            icon: CheckCircleIcon,
+            title: 'Kuppi Hosts',
+            count: applicationStats?.totalKuppiStudents ?? platformStats?.totalKuppiStudents ?? 0,
+            color: '#10B981',
+            action: () => router.push('/admin/kuppi'),
+            description: 'Active hosts',
+        },
+        {
+            icon: EventIcon,
+            title: 'Total Sessions',
+            count: platformStats?.totalSessions ?? 0,
+            color: '#3B82F6',
+            action: () => router.push('/admin/kuppi'),
+            description: 'All sessions',
+        },
+        {
+            icon: DescriptionIcon,
+            title: 'Study Notes',
+            count: platformStats?.totalNotes ?? 0,
+            color: '#8B5CF6',
+            action: () => router.push('/admin/kuppi'),
+            description: 'Uploaded notes',
+        },
+    ];
 
     return (
         <MotionBox variants={containerVariants} initial="hidden" animate="show" sx={{ maxWidth: 1600, mx: 'auto' }}>
@@ -119,6 +183,80 @@ export default function AdminDashboardPage() {
                     </MotionCard>
                 </Grid>
             </Grid>
+
+            {/* Kuppi Management Section */}
+            <MotionBox variants={itemVariants} sx={{ mt: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <AutoStoriesIcon color="primary" />
+                        <Typography variant="h6" fontWeight={600}>Kuppi Management</Typography>
+                    </Stack>
+                    <Button
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => router.push('/admin/kuppi')}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        Manage Kuppi
+                    </Button>
+                </Stack>
+
+                <Grid container spacing={2}>
+                    {kuppiActions.map((action, index) => {
+                        const Icon = action.icon;
+                        return (
+                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                                <MotionCard
+                                    variants={itemVariants}
+                                    whileHover={{ y: -4 }}
+                                    onClick={action.action}
+                                    sx={{
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            borderColor: action.color,
+                                            boxShadow: `0 8px 24px -8px ${action.color}40`,
+                                        },
+                                    }}
+                                >
+                                    <CardContent sx={{ p: 2.5 }}>
+                                        <Stack spacing={1.5}>
+                                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                                <Box
+                                                    sx={{
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 2,
+                                                        bgcolor: alpha(action.color, 0.1),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                    }}
+                                                >
+                                                    <Icon sx={{ color: action.color, fontSize: 24 }} />
+                                                </Box>
+                                                {kuppiLoading ? (
+                                                    <CircularProgress size={20} />
+                                                ) : (
+                                                    <Typography variant="h5" fontWeight={700} sx={{ color: action.color }}>
+                                                        {action.count}
+                                                    </Typography>
+                                                )}
+                                            </Stack>
+                                            <Box>
+                                                <Typography variant="subtitle2" fontWeight={600}>{action.title}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{action.description}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </CardContent>
+                                </MotionCard>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </MotionBox>
         </MotionBox>
     );
 }

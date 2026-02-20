@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Grid, Typography, Card, CardContent, Stack, Chip, LinearProgress, Button } from '@mui/material';
+import { useEffect } from 'react';
+import { Box, Grid, Typography, Card, CardContent, Stack, Chip, LinearProgress, Button, alpha, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import SchoolIcon from '@mui/icons-material/School';
@@ -12,10 +13,21 @@ import PersonIcon from '@mui/icons-material/Person';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MapIcon from '@mui/icons-material/Map';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import PendingIcon from '@mui/icons-material/Pending';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DescriptionIcon from '@mui/icons-material/Description';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { WelcomeBanner, StatsCard, QuickAccessGrid } from '@/components/widgets';
-import { useAppSelector } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/store';
 import { selectUser } from '@/features/auth/authSlice';
 import type { QuickAction, StatItem } from '@/features/dashboard';
+import {
+    adminFetchApplicationStats,
+    adminFetchPlatformStats,
+    selectKuppiApplicationStats,
+    selectKuppiPlatformStats,
+    selectKuppiIsLoading,
+} from '@/features/kuppi';
 
 const MotionBox = motion.create(Box);
 const MotionCard = motion.create(Card);
@@ -56,6 +68,55 @@ const PENDING_TASKS = [
 export default function AcademicDashboard() {
     const router = useRouter();
     const user = useAppSelector(selectUser);
+    const dispatch = useAppDispatch();
+
+    // Kuppi stats from Redux
+    const applicationStats = useAppSelector(selectKuppiApplicationStats);
+    const platformStats = useAppSelector(selectKuppiPlatformStats);
+    const kuppiLoading = useAppSelector(selectKuppiIsLoading);
+
+    // Fetch Kuppi stats on mount
+    useEffect(() => {
+        dispatch(adminFetchApplicationStats());
+        dispatch(adminFetchPlatformStats());
+    }, [dispatch]);
+
+    // Kuppi quick actions for academic staff
+    const kuppiActions = [
+        {
+            icon: PendingIcon,
+            title: 'Pending Applications',
+            count: applicationStats?.pendingApplications ?? 0,
+            color: '#F59E0B',
+            action: () => router.push('/academic/kuppi'),
+            description: 'Review applications',
+        },
+        {
+            icon: CheckCircleIcon,
+            title: 'Kuppi Hosts',
+            count: applicationStats?.totalKuppiStudents ?? platformStats?.totalKuppiStudents ?? 0,
+            color: '#10B981',
+            action: () => router.push('/academic/kuppi'),
+            description: 'Active hosts',
+        },
+        {
+            icon: EventIcon,
+            title: 'Sessions',
+            count: platformStats?.totalSessions ?? 0,
+            color: '#3B82F6',
+            action: () => router.push('/academic/kuppi'),
+            description: 'All sessions',
+        },
+        {
+            icon: DescriptionIcon,
+            title: 'Notes',
+            count: platformStats?.totalNotes ?? 0,
+            color: '#8B5CF6',
+            action: () => router.push('/academic/kuppi'),
+            description: 'Study materials',
+        },
+    ];
+
     const handleNavigation = (path: string) => router.push(path);
 
     return (
@@ -152,6 +213,80 @@ export default function AcademicDashboard() {
                     </MotionCard>
                 </Grid>
             </Grid>
+
+            {/* Kuppi Management Section */}
+            <MotionBox variants={itemVariants} sx={{ mt: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <AutoStoriesIcon color="primary" />
+                        <Typography variant="h6" fontWeight={600}>Kuppi Management</Typography>
+                    </Stack>
+                    <Button
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => handleNavigation('/academic/kuppi')}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        Manage Kuppi
+                    </Button>
+                </Stack>
+
+                <Grid container spacing={2}>
+                    {kuppiActions.map((action, index) => {
+                        const Icon = action.icon;
+                        return (
+                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                                <MotionCard
+                                    variants={itemVariants}
+                                    whileHover={{ y: -4 }}
+                                    onClick={action.action}
+                                    sx={{
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            borderColor: action.color,
+                                            boxShadow: `0 8px 24px -8px ${action.color}40`,
+                                        },
+                                    }}
+                                >
+                                    <CardContent sx={{ p: 2.5 }}>
+                                        <Stack spacing={1.5}>
+                                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                                <Box
+                                                    sx={{
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 2,
+                                                        bgcolor: alpha(action.color, 0.1),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                    }}
+                                                >
+                                                    <Icon sx={{ color: action.color, fontSize: 24 }} />
+                                                </Box>
+                                                {kuppiLoading ? (
+                                                    <CircularProgress size={20} />
+                                                ) : (
+                                                    <Typography variant="h5" fontWeight={700} sx={{ color: action.color }}>
+                                                        {action.count}
+                                                    </Typography>
+                                                )}
+                                            </Stack>
+                                            <Box>
+                                                <Typography variant="subtitle2" fontWeight={600}>{action.title}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{action.description}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </CardContent>
+                                </MotionCard>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </MotionBox>
         </MotionBox>
     );
 }

@@ -11,6 +11,7 @@ import userReducer from '@/features/users/userSlice';
 import adminReducer from '@/features/admin/adminSlice';
 import superAdminReducer from '@/features/super-admin/superAdminSlice';
 import adminUserManagementReducer from '@/features/super-admin/adminUserManagementSlice';
+import kuppiReducer from '@/features/kuppi/kuppiSlice';
 import {
     persistStore,
     persistReducer,
@@ -34,6 +35,7 @@ const rootReducer = combineReducers({
     admin: adminReducer,
     superAdmin: superAdminReducer,
     adminUserManagement: adminUserManagementReducer,
+    kuppi: kuppiReducer,
 });
 
 // ============================================================================
