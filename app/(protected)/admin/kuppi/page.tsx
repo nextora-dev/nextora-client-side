@@ -26,6 +26,7 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    InputAdornment,
     Alert,
     Snackbar,
     CircularProgress,
@@ -36,8 +37,10 @@ import {
     useMediaQuery,
     Tabs,
     Tab,
+    Paper,
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -47,14 +50,17 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import CloseIcon from '@mui/icons-material/Close';
 import PendingIcon from '@mui/icons-material/Pending';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import GroupIcon from '@mui/icons-material/Group';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import SchoolIcon from '@mui/icons-material/School';
 import StarIcon from '@mui/icons-material/Star';
+import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EventIcon from '@mui/icons-material/Event';
 import DescriptionIcon from '@mui/icons-material/Description';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import DownloadIcon from '@mui/icons-material/Download';
 
 import { useAppDispatch, useAppSelector } from '@/store';
@@ -69,8 +75,10 @@ import {
     fetchNotes,
     setKuppiCurrentPage,
     setKuppiPageSize,
+    clearKuppiSelectedApplication,
     clearKuppiError,
     clearKuppiSuccessMessage,
+    clearKuppiSelectedSession,
     selectKuppiAllApplications,
     selectKuppiTotalApplications,
     selectKuppiApplicationStats,
@@ -93,6 +101,7 @@ import {
     KuppiNoteResponse,
     ApplicationStatus,
     SessionStatus,
+    ReviewKuppiApplicationRequest,
 } from '@/features/kuppi';
 import * as kuppiServices from '@/features/kuppi/services';
 
@@ -125,6 +134,7 @@ const SESSION_STATUS_COLORS: Record<SessionStatus, string> = {
     CANCELLED: '#EF4444',
 };
 
+// Get status icon
 const getApplicationStatusIcon = (status: ApplicationStatus) => {
     switch (status) {
         case 'PENDING': return <PendingIcon fontSize="small" />;
@@ -146,7 +156,7 @@ const getSessionStatusIcon = (status: SessionStatus) => {
     }
 };
 
-export default function AcademicKuppiDashboard() {
+export default function AdminKuppiDashboard() {
     const theme = useTheme();
     const dispatch = useAppDispatch();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -172,8 +182,9 @@ export default function AcademicKuppiDashboard() {
     const successMessage = useAppSelector(selectKuppiSuccessMessage);
 
     // Local state
-    const [mainTab, setMainTab] = useState(0);
+    const [mainTab, setMainTab] = useState(0); // 0: Overview, 1: Applications, 2: Sessions, 3: Notes
     const [applicationStatusFilter, setApplicationStatusFilter] = useState<ApplicationStatus | ''>('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedApp, setSelectedApp] = useState<KuppiApplicationResponse | null>(null);
     const [selectedSession, setSelectedSession] = useState<KuppiSessionResponse | null>(null);
@@ -196,29 +207,34 @@ export default function AcademicKuppiDashboard() {
         dispatch(fetchNotes({ page: 0, size: pageSize }));
     }, [dispatch, pageSize]);
 
+    // Handle tab change
     const handleMainTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setMainTab(newValue);
         dispatch(setKuppiCurrentPage(0));
     };
 
+    // Handle refresh
     const handleRefresh = useCallback(() => {
         dispatch(adminFetchApplicationStats());
         dispatch(adminFetchPlatformStats());
-        if (mainTab === 0) {
+        if (mainTab === 1) {
             dispatch(adminFetchApplications({ page, size: pageSize, status: applicationStatusFilter || undefined }));
-        } else if (mainTab === 1) {
-            dispatch(fetchSessions({ page, size: pageSize }));
         } else if (mainTab === 2) {
+            dispatch(fetchSessions({ page, size: pageSize }));
+        } else if (mainTab === 3) {
             dispatch(fetchNotes({ page, size: pageSize }));
         }
     }, [dispatch, mainTab, page, pageSize, applicationStatusFilter]);
 
+    // Application handlers
     const handleApplicationMenuOpen = (event: React.MouseEvent<HTMLElement>, app: KuppiApplicationResponse) => {
         setAnchorEl(event.currentTarget);
         setSelectedApp(app);
     };
 
-    const handleMenuClose = () => setAnchorEl(null);
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
 
     const handleViewApplication = () => {
         handleMenuClose();
@@ -252,12 +268,13 @@ export default function AcademicKuppiDashboard() {
                 await kuppiServices.adminMarkUnderReview(selectedApp.id);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Marked as under review', severity: 'success' });
-            } catch {
+            } catch (err) {
                 setSnackbar({ open: true, message: 'Failed to update', severity: 'error' });
             }
         }
     };
 
+    // Session handlers
     const handleDeleteSession = async () => {
         if (selectedSession) {
             setActionLoading(true);
@@ -266,7 +283,7 @@ export default function AcademicKuppiDashboard() {
                 setDeleteDialogOpen(false);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Session deleted', severity: 'success' });
-            } catch {
+            } catch (err) {
                 setSnackbar({ open: true, message: 'Failed to delete session', severity: 'error' });
             } finally {
                 setActionLoading(false);
@@ -274,6 +291,7 @@ export default function AcademicKuppiDashboard() {
         }
     };
 
+    // Note handlers
     const handleDeleteNote = async () => {
         if (selectedNote) {
             setActionLoading(true);
@@ -282,7 +300,7 @@ export default function AcademicKuppiDashboard() {
                 setDeleteDialogOpen(false);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Note deleted', severity: 'success' });
-            } catch {
+            } catch (err) {
                 setSnackbar({ open: true, message: 'Failed to delete note', severity: 'error' });
             } finally {
                 setActionLoading(false);
@@ -290,6 +308,7 @@ export default function AcademicKuppiDashboard() {
         }
     };
 
+    // Handle messages
     useEffect(() => {
         if (error) {
             setSnackbar({ open: true, message: error, severity: 'error' });
@@ -302,6 +321,7 @@ export default function AcademicKuppiDashboard() {
         }
     }, [error, successMessage, dispatch, handleRefresh]);
 
+    // Overview stats
     const overviewStats = [
         { label: 'Total Sessions', value: platformStats?.totalSessions ?? 0, icon: EventIcon, color: '#3B82F6' },
         { label: 'Total Notes', value: platformStats?.totalNotes ?? 0, icon: DescriptionIcon, color: '#10B981' },
@@ -369,20 +389,22 @@ export default function AcademicKuppiDashboard() {
             {mainTab === 0 && (
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                     <CardContent sx={{ p: 2 }}>
-                        <Tabs
-                            value={applicationStatusFilter === '' ? 0 : applicationStatusFilter === 'PENDING' ? 1 : applicationStatusFilter === 'UNDER_REVIEW' ? 2 : 3}
-                            onChange={(_, v) => {
-                                const statuses: (ApplicationStatus | '')[] = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED'];
-                                setApplicationStatusFilter(statuses[v]);
-                                dispatch(adminFetchApplications({ page: 0, size: pageSize, status: statuses[v] || undefined }));
-                            }}
-                            sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}
-                        >
-                            <Tab label="All" />
-                            <Tab label="Pending" />
-                            <Tab label="Under Review" />
-                            <Tab label="Approved" />
-                        </Tabs>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
+                            <Tabs
+                                value={applicationStatusFilter === '' ? 0 : applicationStatusFilter === 'PENDING' ? 1 : applicationStatusFilter === 'UNDER_REVIEW' ? 2 : 3}
+                                onChange={(_, v) => {
+                                    const statuses: (ApplicationStatus | '')[] = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED'];
+                                    setApplicationStatusFilter(statuses[v]);
+                                    dispatch(adminFetchApplications({ page: 0, size: pageSize, status: statuses[v] || undefined }));
+                                }}
+                                sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}
+                            >
+                                <Tab label="All" />
+                                <Tab label="Pending" />
+                                <Tab label="Under Review" />
+                                <Tab label="Approved" />
+                            </Tabs>
+                        </Stack>
                     </CardContent>
 
                     {isApplicationLoading ? (
@@ -430,7 +452,12 @@ export default function AcademicKuppiDashboard() {
                                                     </Stack>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Chip icon={getApplicationStatusIcon(app.status)} label={app.statusDisplayName} size="small" sx={{ bgcolor: alpha(APPLICATION_STATUS_COLORS[app.status], 0.1), color: APPLICATION_STATUS_COLORS[app.status], '& .MuiChip-icon': { color: 'inherit' } }} />
+                                                    <Chip
+                                                        icon={getApplicationStatusIcon(app.status)}
+                                                        label={app.statusDisplayName}
+                                                        size="small"
+                                                        sx={{ bgcolor: alpha(APPLICATION_STATUS_COLORS[app.status], 0.1), color: APPLICATION_STATUS_COLORS[app.status], '& .MuiChip-icon': { color: 'inherit' } }}
+                                                    />
                                                 </TableCell>
                                                 <TableCell align="right">
                                                     <IconButton size="small" onClick={(e) => handleApplicationMenuOpen(e, app)}><MoreVertIcon /></IconButton>
@@ -440,7 +467,15 @@ export default function AcademicKuppiDashboard() {
                                     </TableBody>
                                 </Table>
                             </TableContainer>
-                            <TablePagination component="div" count={totalApplications} page={page} onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(adminFetchApplications({ page: p, size: pageSize, status: applicationStatusFilter || undefined })); }} rowsPerPage={pageSize} onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }} rowsPerPageOptions={[5, 10, 25]} />
+                            <TablePagination
+                                component="div"
+                                count={totalApplications}
+                                page={page}
+                                onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(adminFetchApplications({ page: p, size: pageSize, status: applicationStatusFilter || undefined })); }}
+                                rowsPerPage={pageSize}
+                                onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
+                                rowsPerPageOptions={[5, 10, 25]}
+                            />
                         </>
                     )}
                 </MotionCard>
@@ -479,19 +514,44 @@ export default function AcademicKuppiDashboard() {
                                                         <Chip label={session.subject} size="small" sx={{ mt: 0.5 }} />
                                                     </Box>
                                                 </TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}><Typography variant="body2">{session.hostName}</Typography></TableCell>
-                                                <TableCell><Chip icon={getSessionStatusIcon(session.status)} label={session.status} size="small" sx={{ bgcolor: alpha(SESSION_STATUS_COLORS[session.status], 0.1), color: SESSION_STATUS_COLORS[session.status], '& .MuiChip-icon': { color: 'inherit' } }} /></TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Typography variant="caption">{new Date(session.scheduledStartTime).toLocaleDateString()}</Typography></TableCell>
-                                                <TableCell><Typography variant="body2">{session.viewCount}</Typography></TableCell>
+                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                                    <Typography variant="body2">{session.hostName}</Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        icon={getSessionStatusIcon(session.status)}
+                                                        label={session.status}
+                                                        size="small"
+                                                        sx={{ bgcolor: alpha(SESSION_STATUS_COLORS[session.status], 0.1), color: SESSION_STATUS_COLORS[session.status], '& .MuiChip-icon': { color: 'inherit' } }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                                                    <Typography variant="caption">{new Date(session.scheduledStartTime).toLocaleDateString()}</Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2">{session.viewCount}</Typography>
+                                                </TableCell>
                                                 <TableCell align="right">
-                                                    <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => { setSelectedSession(session); setDeleteDialogOpen(true); }}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                                                    <Tooltip title="Delete">
+                                                        <IconButton size="small" color="error" onClick={() => { setSelectedSession(session); setDeleteDialogOpen(true); }}>
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
-                            <TablePagination component="div" count={totalSessions} page={page} onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchSessions({ page: p, size: pageSize })); }} rowsPerPage={pageSize} onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }} rowsPerPageOptions={[5, 10, 25]} />
+                            <TablePagination
+                                component="div"
+                                count={totalSessions}
+                                page={page}
+                                onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchSessions({ page: p, size: pageSize })); }}
+                                rowsPerPage={pageSize}
+                                onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
+                                rowsPerPageOptions={[5, 10, 25]}
+                            />
                         </>
                     )}
                 </MotionCard>
@@ -524,20 +584,42 @@ export default function AcademicKuppiDashboard() {
                                     <TableBody>
                                         {notes.map((note) => (
                                             <TableRow key={note.id} hover>
-                                                <TableCell><Typography variant="body2" fontWeight={600}>{note.title}</Typography></TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}><Typography variant="body2">{note.uploaderName}</Typography></TableCell>
-                                                <TableCell><Chip label={note.fileType?.toUpperCase() || 'FILE'} size="small" /></TableCell>
-                                                <TableCell><Typography variant="body2">{note.viewCount}</Typography></TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}><Typography variant="body2">{note.downloadCount}</Typography></TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" fontWeight={600}>{note.title}</Typography>
+                                                </TableCell>
+                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                                    <Typography variant="body2">{note.uploaderName}</Typography>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip label={note.fileType?.toUpperCase() || 'FILE'} size="small" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2">{note.viewCount}</Typography>
+                                                </TableCell>
+                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                                                    <Typography variant="body2">{note.downloadCount}</Typography>
+                                                </TableCell>
                                                 <TableCell align="right">
-                                                    <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => { setSelectedNote(note); setDeleteDialogOpen(true); }}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                                                    <Tooltip title="Delete">
+                                                        <IconButton size="small" color="error" onClick={() => { setSelectedNote(note); setDeleteDialogOpen(true); }}>
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
-                            <TablePagination component="div" count={totalNotes} page={page} onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchNotes({ page: p, size: pageSize })); }} rowsPerPage={pageSize} onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }} rowsPerPageOptions={[5, 10, 25]} />
+                            <TablePagination
+                                component="div"
+                                count={totalNotes}
+                                page={page}
+                                onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchNotes({ page: p, size: pageSize })); }}
+                                rowsPerPage={pageSize}
+                                onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
+                                rowsPerPageOptions={[5, 10, 25]}
+                            />
                         </>
                     )}
                 </MotionCard>
@@ -546,9 +628,21 @@ export default function AcademicKuppiDashboard() {
             {/* Application Action Menu */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
                 <MenuItem onClick={handleViewApplication}><VisibilityIcon sx={{ mr: 1.5, fontSize: 20 }} />View Details</MenuItem>
-                {selectedApp?.canBeApproved && <MenuItem onClick={() => { handleMenuClose(); setApproveDialogOpen(true); }} sx={{ color: 'success.main' }}><ThumbUpIcon sx={{ mr: 1.5, fontSize: 20 }} />Approve</MenuItem>}
-                {selectedApp?.canBeRejected && <MenuItem onClick={() => { handleMenuClose(); setRejectDialogOpen(true); }} sx={{ color: 'error.main' }}><ThumbDownIcon sx={{ mr: 1.5, fontSize: 20 }} />Reject</MenuItem>}
-                {selectedApp?.status === 'PENDING' && <MenuItem onClick={handleMarkUnderReview} sx={{ color: 'info.main' }}><HourglassEmptyIcon sx={{ mr: 1.5, fontSize: 20 }} />Mark Under Review</MenuItem>}
+                {selectedApp?.canBeApproved && (
+                    <MenuItem onClick={() => { handleMenuClose(); setApproveDialogOpen(true); }} sx={{ color: 'success.main' }}>
+                        <ThumbUpIcon sx={{ mr: 1.5, fontSize: 20 }} />Approve
+                    </MenuItem>
+                )}
+                {selectedApp?.canBeRejected && (
+                    <MenuItem onClick={() => { handleMenuClose(); setRejectDialogOpen(true); }} sx={{ color: 'error.main' }}>
+                        <ThumbDownIcon sx={{ mr: 1.5, fontSize: 20 }} />Reject
+                    </MenuItem>
+                )}
+                {selectedApp?.status === 'PENDING' && (
+                    <MenuItem onClick={handleMarkUnderReview} sx={{ color: 'info.main' }}>
+                        <HourglassEmptyIcon sx={{ mr: 1.5, fontSize: 20 }} />Mark Under Review
+                    </MenuItem>
+                )}
             </Menu>
 
             {/* View Application Dialog */}
@@ -627,7 +721,9 @@ export default function AcademicKuppiDashboard() {
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
                     <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                    <Button variant="contained" color="error" onClick={selectedSession ? handleDeleteSession : handleDeleteNote} disabled={actionLoading}>{actionLoading ? <CircularProgress size={20} /> : 'Delete'}</Button>
+                    <Button variant="contained" color="error" onClick={selectedSession ? handleDeleteSession : handleDeleteNote} disabled={actionLoading}>
+                        {actionLoading ? <CircularProgress size={20} /> : 'Delete'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -638,3 +734,4 @@ export default function AcademicKuppiDashboard() {
         </MotionBox>
     );
 }
+

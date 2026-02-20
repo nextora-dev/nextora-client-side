@@ -10,6 +10,7 @@ export { SessionFilters } from './SessionFilters';
 export { EmptyState } from './EmptyState';
 export { SessionDetailModal } from './SessionDetailModal';
 export { MessageHostModal } from './MessageHostModal';
+export { default as KuppiApplicationManagement } from './KuppiApplicationManagement';
 
 // Utility functions
 export * from './kuppi.utils';

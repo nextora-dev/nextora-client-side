@@ -5,3 +5,4 @@ export * from './admin';
 export * from './super-admin';
 export * from './dashboard';
 export * from './push-notifications';
+export * from './kuppi';
