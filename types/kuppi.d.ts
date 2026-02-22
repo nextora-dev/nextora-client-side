@@ -2,6 +2,7 @@
  * @fileoverview Kuppi Session Types
  * @description Type definitions for Kuppi (peer-led study sessions) feature
  */
+import {ExperienceLevel, Faculty} from "@/features";
 
 export type KuppiViewType = 'list' | 'host' | 'detail';
 export type KuppiSessionStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
@@ -9,13 +10,29 @@ export type KuppiDifficulty = 'beginner' | 'intermediate' | 'advanced';
 
 export interface KuppiHost {
     id: string;
-    name: string;
-    avatar?: string;
-    department: string;
-    gpa: number;
-    rating: number;
-    sessionsHosted: number;
-    expertise: string[];
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    profilePictureUrl: string | null;
+    batch: string;
+    program: string;
+    faculty: Faculty;
+    kuppiSubjects: string[];
+    kuppiExperienceLevel: ExperienceLevel;
+    kuppiRating: number;
+    kuppiAvailability: string;
+    isActive: boolean;
+    // Optional legacy / convenience properties used in UI
+    name?: string; // alias for fullName
+    rating?: number; // alias for kuppiRating
+    sessionsHosted?: number;
+    department?: string;
+    // Additional optional sample/demo properties
+    avatar?: string | null;
+    gpa?: number;
+    expertise?: string[];
 }
 
 export interface KuppiSession {
@@ -37,6 +54,8 @@ export interface KuppiSession {
     isOnline: boolean;
     meetingLink?: string;
     createdAt?: string;
+    // optional hostName provided by some APIs for convenience
+    hostName?: string;
 }
 
 export interface KuppiFilters {

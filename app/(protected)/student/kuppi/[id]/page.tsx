@@ -130,7 +130,7 @@ export default function KuppiSessionDetailPage() {
 
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
-    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+    const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info'>('success');
 
     // ── Edit Session State ──
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -231,6 +231,7 @@ export default function KuppiSessionDetailPage() {
                     rating: rs.hostRating ?? rs.host?.rating ?? 0,
                     sessionsHosted: rs.hostSessionsHosted ?? rs.host?.sessionsHosted ?? 0,
                     gpa: rs.hostGpa ?? rs.host?.gpa ?? null,
+                    profilePictureUrl: rs.host?.profilePictureUrl ?? null,
                 },
                 isActive: rs.isActive ?? rs.is_active ?? false,
                 canJoin: rs.canJoin ?? rs.can_join ?? false,
@@ -274,6 +275,14 @@ export default function KuppiSessionDetailPage() {
 
     const { user } = useAuth();
     const isHost = !!(user && session && user.email && session.host?.email && user.email === session.host.email);
+
+    // Determine whether the session can be cancelled from the UI
+    const isCancellable = useMemo(() => {
+        if (!session) return false;
+        const st = String(session.status || '').toLowerCase();
+        // do not allow cancelling sessions that are completed or already cancelled
+        return st !== 'completed' && st !== 'cancelled';
+    }, [session]);
 
     // ── Edit Dialog Helpers ──
     const openEditDialog = useCallback(() => {
@@ -346,6 +355,24 @@ export default function KuppiSessionDetailPage() {
     // Cancel session handler
     const handleCancelSession = async () => {
         if (!session) return;
+        // Guard: if the session is completed or cancelled don't attempt to call API
+        const st = String(session.status || '').toLowerCase();
+        if (st === 'completed') {
+            setSnackbarMessage('Cannot cancel a completed session');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+            setCancelDialogOpen(false);
+            setCancelReason('');
+            return;
+        }
+        if (st === 'cancelled') {
+            setSnackbarMessage('This session is already cancelled');
+            setSnackbarSeverity('info');
+            setSnackbarOpen(true);
+            setCancelDialogOpen(false);
+            setCancelReason('');
+            return;
+        }
         setActionLoading(true);
         try {
             const result = await dispatch(cancelSessionAsync({ id: Number(session.id), reason: cancelReason })).unwrap();
@@ -356,7 +383,8 @@ export default function KuppiSessionDetailPage() {
             // refresh details
             dispatch(fetchSessionById(Number(session.id)));
         } catch (err: unknown) {
-            setSnackbarMessage((err as any)?.message || 'Failed to cancel session');
+            const errMsg = typeof err === 'string' ? err : (err as any)?.message || 'Failed to cancel session';
+            setSnackbarMessage(errMsg);
             setSnackbarSeverity('error');
             setSnackbarOpen(true);
         } finally {
@@ -671,16 +699,18 @@ export default function KuppiSessionDetailPage() {
                                         Edit Session
                                     </Button>
 
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        startIcon={<CancelIcon />}
-                                        onClick={() => setCancelDialogOpen(true)}
-                                        sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, mr: 2 }}
-                                        disabled={actionLoading || isDeleting}
-                                    >
-                                        Cancel Session
-                                    </Button>
+                                    {isCancellable && (
+                                        <Button
+                                            variant="outlined"
+                                            color="error"
+                                            startIcon={<CancelIcon />}
+                                            onClick={() => setCancelDialogOpen(true)}
+                                            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, mr: 2 }}
+                                            disabled={actionLoading || isDeleting}
+                                        >
+                                            Cancel Session
+                                        </Button>
+                                    )}
 
                                     <Button
                                         variant="outlined"
@@ -729,6 +759,7 @@ export default function KuppiSessionDetailPage() {
                                 }}
                             >
                                 <Avatar
+                                    src={session.host.profilePictureUrl || undefined}
                                     sx={{
                                         width: 64,
                                         height: 64,
@@ -818,12 +849,7 @@ export default function KuppiSessionDetailPage() {
                 onClose={() => !isUpdating && setIsEditOpen(false)}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{
-                    sx: {
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                    },
-                }}
+                sx={{ '& .MuiPaper-root': { borderRadius: 2, overflow: 'hidden' } }}
             >
                 {/* Gradient accent */}
                 <Box sx={{ height: 4, background: `linear-gradient(90deg, ${theme.palette.primary.main}, #6366F1)` }} />

@@ -301,10 +301,12 @@ export default function KuppiNotesPage() {
 
                                             {/* Uploader */}
                                             <Stack direction="row" alignItems="center" spacing={1}>
-                                                <Avatar sx={{ width: 24, height: 24, bgcolor: alpha(theme.palette.primary.main, 0.15), color: 'primary.main', fontSize: '0.65rem', fontWeight: 700 }}>
-                                                    {note.uploaderName?.[0]?.toUpperCase() || 'U'}
+                                                <Avatar
+                                                    src={note.uploader.profilePictureUrl || undefined}
+                                                    sx={{ width: 24, height: 24, bgcolor: alpha(theme.palette.primary.main, 0.15), color: 'primary.main', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                    {note.uploader.fullName?.[0]?.toUpperCase() || 'U'}
                                                 </Avatar>
-                                                <Typography variant="caption" color="text.secondary">{note.uploaderName || 'Unknown'}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{note.uploader.fullName || 'Unknown'}</Typography>
                                             </Stack>
 
                                             {/* Actions */}

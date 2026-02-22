@@ -123,8 +123,8 @@ export default function KuppiNoteDetailPage() {
 
     /* ── Ownership check ── */
     const isOwner = !!(user && note && (
-        Number(user.id) === note.uploadedById ||
-        `${user.firstName} ${user.lastName}`.toLowerCase() === note.uploaderName?.toLowerCase()
+        Number(user.id) === note.uploader.id ||
+        `${user.firstName} ${user.lastName}`.toLowerCase() === note.uploader.fullName?.toLowerCase()
     ));
 
     /* ── Fetch note on mount ── */
@@ -202,11 +202,12 @@ export default function KuppiNoteDetailPage() {
 
     const hasEditChanges = React.useMemo(() => {
         if (!note) return false;
-        if ((editForm.title || '') !== (note.title || '')) return true;
-        if ((editForm.description || '') !== (note.description || '')) return true;
-        if ((editForm.allowDownload) !== (note.allowDownload ?? false)) return true;
-        if (editForm.file) return true;
-        return false;
+        return (
+            (editForm.title || '') !== (note.title || '') ||
+            (editForm.description || '') !== (note.description || '') ||
+            (editForm.allowDownload) !== (note.allowDownload ?? false) ||
+            Boolean(editForm.file)
+        );
     }, [editForm, note]);
 
     const handleEditSubmit = async () => {
@@ -604,6 +605,7 @@ export default function KuppiNoteDetailPage() {
 
                             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
                                 <Avatar
+                                    src={note.uploader.profilePictureUrl || undefined}
                                     sx={{
                                         width: 52, height: 52,
                                         bgcolor: alpha(theme.palette.primary.main, 0.15),
@@ -613,11 +615,11 @@ export default function KuppiNoteDetailPage() {
                                         borderColor: alpha(theme.palette.primary.main, 0.3),
                                     }}
                                 >
-                                    {note.uploaderName?.[0]?.toUpperCase() || 'U'}
+                                    {note.uploader.fullName?.[0]?.toUpperCase() || 'U'}
                                 </Avatar>
                                 <Box>
                                     <Stack direction="row" spacing={1} alignItems="center">
-                                        <Typography variant="subtitle1" fontWeight={700}>{note.uploaderName || 'Unknown'}</Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>{note.uploader.fullName || 'Unknown'}</Typography>
                                         {isOwner && (
                                             <Chip label="You" size="small" color="primary" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.6rem', height: 20 }} />
                                         )}
@@ -679,42 +681,6 @@ export default function KuppiNoteDetailPage() {
                             </Grid>
                         </CardContent>
                     </MotionCard>
-
-                    {/* ── Owner Actions Card ── */}
-                    {isOwner && (
-                        <MotionCard
-                            initial={{ opacity: 0, y: 24 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.36 }}
-                            sx={{ borderRadius: 1, border: '1px solid', borderColor: alpha(theme.palette.error.main, 0.2) }}
-                        >
-                            <CardContent sx={{ p: 3 }}>
-                                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
-                                    Manage Note
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                    As the owner, you can manage this note.
-                                </Typography>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    color="error"
-                                    startIcon={<DeleteOutlineIcon />}
-                                    onClick={() => setDeleteDialogOpen(true)}
-                                    sx={{
-                                        borderRadius: 1, textTransform: 'none', fontWeight: 600,
-                                        borderColor: alpha(theme.palette.error.main, 0.4),
-                                        '&:hover': {
-                                            borderColor: theme.palette.error.main,
-                                            bgcolor: alpha(theme.palette.error.main, 0.06),
-                                        },
-                                    }}
-                                >
-                                    Delete This Note
-                                </Button>
-                            </CardContent>
-                        </MotionCard>
-                    )}
                 </Grid>
             </Grid>
 
@@ -724,7 +690,7 @@ export default function KuppiNoteDetailPage() {
                 onClose={() => !isDeleting && setDeleteDialogOpen(false)}
                 maxWidth="xs"
                 fullWidth
-                PaperProps={{ sx: { borderRadius: 2 } }}
+                sx={{ '& .MuiPaper-root': { borderRadius: 2 } }}
             >
                 <DialogTitle sx={{ pb: 1 }}>
                     <Stack direction="row" spacing={1.5} alignItems="center">

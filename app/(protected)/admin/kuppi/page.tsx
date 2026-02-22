@@ -62,6 +62,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import DownloadIcon from '@mui/icons-material/Download';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -106,6 +107,11 @@ import {
     SessionStatus,
 } from '@/features/kuppi';
 import * as kuppiServices from '@/features/kuppi/services';
+
+// New component imports
+import RescheduleSessionModal from '@/components/kuppi/RescheduleSessionModal';
+import SessionSearchPanel from '@/components/kuppi/SessionSearchPanel';
+import SessionNotesList from '@/components/kuppi/SessionNotesList';
 
 const MotionBox = motion.create(Box);
 const MotionCard = motion.create(Card);
@@ -185,7 +191,8 @@ export default function AdminKuppiDashboard() {
     const successMessage = useAppSelector(selectKuppiSuccessMessage);
 
     // Local state
-    const [mainTab, setMainTab] = useState(0); // 0: Overview, 1: Applications, 2: Sessions, 3: Notes
+    // mainTab: 0 = Applications, 1 = Sessions, 2 = Notes
+    const [mainTab, setMainTab] = useState(0);
     const [applicationStatusFilter, setApplicationStatusFilter] = useState<ApplicationStatus | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -201,6 +208,11 @@ export default function AdminKuppiDashboard() {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
     const [actionLoading, setActionLoading] = useState(false);
 
+    // New local state for session search/filter and modals
+    const [filteredSessions, setFilteredSessions] = useState<KuppiSessionResponse[] | null>(null);
+    const [rescheduleOpen, setRescheduleOpen] = useState(false);
+    const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+
     // Fetch data on mount
     useEffect(() => {
         dispatch(adminFetchApplicationStats());
@@ -213,20 +225,32 @@ export default function AdminKuppiDashboard() {
     // Handle tab change
     const handleMainTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setMainTab(newValue);
+        // reset paging in slice
         dispatch(setKuppiCurrentPage(0));
+        // fetch appropriate data for each tab immediately
+        if (newValue === 0) {
+            dispatch(adminFetchApplications({ page: 0, size: pageSize, status: applicationStatusFilter || undefined }));
+        } else if (newValue === 1) {
+            dispatch(fetchSessions({ page: 0, size: pageSize }));
+        } else if (newValue === 2) {
+            dispatch(fetchNotes({ page: 0, size: pageSize }));
+        }
     };
 
     // Handle refresh
     const handleRefresh = useCallback(() => {
         dispatch(adminFetchApplicationStats());
         dispatch(adminFetchPlatformStats());
-        if (mainTab === 1) {
+        // Note: mainTab mapping -> 0=Applications, 1=Sessions, 2=Notes
+        if (mainTab === 0) {
             dispatch(adminFetchApplications({ page, size: pageSize, status: applicationStatusFilter || undefined }));
-        } else if (mainTab === 2) {
+        } else if (mainTab === 1) {
             dispatch(fetchSessions({ page, size: pageSize }));
-        } else if (mainTab === 3) {
+        } else if (mainTab === 2) {
             dispatch(fetchNotes({ page, size: pageSize }));
         }
+        // clear filters when refreshing
+        setFilteredSessions(null);
     }, [dispatch, mainTab, page, pageSize, applicationStatusFilter]);
 
     // Application handlers
@@ -327,6 +351,15 @@ export default function AdminKuppiDashboard() {
         }
     }, [error, successMessage, dispatch, handleRefresh]);
 
+    // Helper to render uploader which might be a string or an object
+    const renderUploader = (note: KuppiNoteResponse) => {
+        const u: any = (note as any).uploader;
+        if (!u) return note.uploaderName ?? '';
+        if (typeof u === 'string') return u;
+        // try common fields
+        return u.uploaderName ?? u.name ?? u.fullName ?? u.studentName ?? '';
+    };
+
     // Overview stats
     const overviewStats = [
         { label: 'Total Sessions', value: platformStats?.totalSessions ?? 0, icon: EventIcon, color: '#3B82F6' },
@@ -361,10 +394,10 @@ export default function AdminKuppiDashboard() {
                         const Icon = stat.icon;
                         return (
                             <Grid size={{ xs: 6, sm: 4, md: 2 }} key={index}>
-                                <Card elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, height: '100%' }}>
+                                <Card elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, height: '100%' }}>
                                     <CardContent sx={{ p: 2 }}>
                                         <Stack direction="row" alignItems="center" spacing={1.5}>
-                                            <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(stat.color, 0.1) }}>
+                                            <Box sx={{ width: 40, height: 40, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(stat.color, 0.1) }}>
                                                 <Icon sx={{ color: stat.color, fontSize: 20 }} />
                                             </Box>
                                             <Box>
@@ -381,7 +414,7 @@ export default function AdminKuppiDashboard() {
             </MotionBox>
 
             {/* Main Tabs */}
-            <MotionCard variants={itemVariants} elevation={0} sx={{ mb: 3, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+            <MotionCard variants={itemVariants} elevation={0} sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                 <CardContent sx={{ p: 2 }}>
                     <Tabs value={mainTab} onChange={handleMainTabChange} variant="scrollable" scrollButtons="auto">
                         <Tab label="Applications" icon={<AssignmentIcon />} iconPosition="start" />
@@ -391,9 +424,9 @@ export default function AdminKuppiDashboard() {
                 </CardContent>
             </MotionCard>
 
-            {/* Applications Tab */}
-            {mainTab === 0 && (
-                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+            {/* Applications Tab (mounted always, hidden when inactive) */}
+            <Box role="tabpanel" hidden={mainTab !== 0} sx={{ display: mainTab === 0 ? 'block' : 'none' }}>
+                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                     <CardContent sx={{ p: 2 }}>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
                             <Tabs
@@ -485,151 +518,197 @@ export default function AdminKuppiDashboard() {
                         </>
                     )}
                 </MotionCard>
-            )}
+            </Box>
 
-            {/* Sessions Tab */}
-            {mainTab === 1 && (
-                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+            {/* Sessions Tab (mounted always, hidden when inactive) */}
+            <Box role="tabpanel" hidden={mainTab !== 1} sx={{ display: mainTab === 1 ? 'block' : 'none' }}>
+                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                     {isLoading ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-                    ) : sessions.length === 0 ? (
-                        <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <EventIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                            <Typography color="text.secondary">No sessions found</Typography>
-                        </Box>
                     ) : (
-                        <>
-                            <TableContainer>
-                                <Table size={isTablet ? 'small' : 'medium'}>
-                                    <TableHead>
-                                        <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-                                            <TableCell sx={{ fontWeight: 600 }}>Session</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Host</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Date</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Views</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {sessions.map((session) => (
-                                            <TableRow key={session.id} hover>
-                                                <TableCell>
-                                                    <Box>
-                                                        <Typography variant="body2" fontWeight={600}>{session.title}</Typography>
-                                                        <Chip label={session.subject} size="small" sx={{ mt: 0.5 }} />
-                                                    </Box>
-                                                </TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                                    <Typography variant="body2">{session.hostName}</Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Chip
-                                                        icon={getSessionStatusIcon(session.status)}
-                                                        label={session.status}
-                                                        size="small"
-                                                        sx={{ bgcolor: alpha(SESSION_STATUS_COLORS[session.status], 0.1), color: SESSION_STATUS_COLORS[session.status], '& .MuiChip-icon': { color: 'inherit' } }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                                                    <Typography variant="caption">{new Date(session.scheduledStartTime).toLocaleDateString()}</Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2">{session.viewCount}</Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Tooltip title="Delete">
-                                                        <IconButton size="small" color="error" onClick={() => { setSelectedSession(session); setDeleteDialogOpen(true); }}>
-                                                            <DeleteIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                            <TablePagination
-                                component="div"
-                                count={totalSessions}
-                                page={page}
-                                onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchSessions({ page: p, size: pageSize })); }}
-                                rowsPerPage={pageSize}
-                                onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
-                                rowsPerPageOptions={[5, 10, 25]}
-                            />
-                        </>
+                        (() => {
+                            const sessionsToShow = filteredSessions ?? sessions;
+                            if (sessionsToShow.length === 0) {
+                                return (
+                                    <Box sx={{ textAlign: 'center', py: 8 }}>
+                                        <EventIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                                        <Typography color="text.secondary">No sessions found</Typography>
+                                    </Box>
+                                );
+                            }
+                            return (
+                                <>
+                                    <Box sx={{ mb: 2, p: 2}}>
+                                        <SessionSearchPanel onResults={(results) => setFilteredSessions(results)} />
+                                    </Box>
+                                    <TableContainer>
+                                        <Table size={isTablet ? 'small' : 'medium'}>
+                                            <TableHead>
+                                                <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Session</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Host</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Date</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Views</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {sessionsToShow.map((session) => (
+                                                    <TableRow key={session.id} hover>
+                                                        <TableCell>
+                                                            <Box>
+                                                                <Typography variant="body2" fontWeight={600}>{session.title}</Typography>
+                                                                <Chip label={session.subject} size="small" sx={{ mt: 0.5 }} />
+                                                            </Box>
+                                                        </TableCell>
+                                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                                            <Typography variant="body2">{session.host.fullName}</Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Chip
+                                                                icon={getSessionStatusIcon(session.status)}
+                                                                label={session.status}
+                                                                size="small"
+                                                                sx={{ bgcolor: alpha(SESSION_STATUS_COLORS[session.status], 0.1), color: SESSION_STATUS_COLORS[session.status], '& .MuiChip-icon': { color: 'inherit' } }}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                                                            <Typography variant="caption">{new Date(session.scheduledStartTime).toLocaleDateString()}</Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="body2">{session.viewCount}</Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Tooltip title="Reschedule">
+                                                                <IconButton size="small" onClick={() => { setSelectedSession(session); setRescheduleOpen(true); }}>
+                                                                    <CalendarTodayIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Notes">
+                                                                <IconButton size="small" onClick={() => { setSelectedSession(session); setNotesDialogOpen(true); }}>
+                                                                    <DescriptionIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Delete">
+                                                                <IconButton size="small" color="error" onClick={() => { setSelectedSession(session); setDeleteDialogOpen(true); }}>
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                    <TablePagination
+                                        component="div"
+                                        count={totalSessions}
+                                        page={page}
+                                        onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchSessions({ page: p, size: pageSize })); }}
+                                        rowsPerPage={pageSize}
+                                        onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
+                                        rowsPerPageOptions={[5, 10, 25]}
+                                    />
+                                </>
+                            );
+                        })()
                     )}
                 </MotionCard>
-            )}
+            </Box>
 
-            {/* Notes Tab */}
-            {mainTab === 2 && (
-                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+            {/* Notes Tab (mounted always, hidden when inactive) */}
+            <Box role="tabpanel" hidden={mainTab !== 2} sx={{ display: mainTab === 2 ? 'block' : 'none' }}>
+                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                     {isLoading ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
-                    ) : notes.length === 0 ? (
-                        <Box sx={{ textAlign: 'center', py: 8 }}>
-                            <DescriptionIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                            <Typography color="text.secondary">No notes found</Typography>
-                        </Box>
                     ) : (
-                        <>
-                            <TableContainer>
-                                <Table size={isTablet ? 'small' : 'medium'}>
-                                    <TableHead>
-                                        <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-                                            <TableCell sx={{ fontWeight: 600 }}>Note</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Uploader</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
-                                            <TableCell sx={{ fontWeight: 600 }}>Views</TableCell>
-                                            <TableCell sx={{ fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Downloads</TableCell>
-                                            <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {notes.map((note) => (
-                                            <TableRow key={note.id} hover>
-                                                <TableCell>
-                                                    <Typography variant="body2" fontWeight={600}>{note.title}</Typography>
-                                                </TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                                    <Typography variant="body2">{note.uploaderName}</Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Chip label={note.fileType?.toUpperCase() || 'FILE'} size="small" />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2">{note.viewCount}</Typography>
-                                                </TableCell>
-                                                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                                                    <Typography variant="body2">{note.downloadCount}</Typography>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Tooltip title="Delete">
-                                                        <IconButton size="small" color="error" onClick={() => { setSelectedNote(note); setDeleteDialogOpen(true); }}>
-                                                            <DeleteIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                            <TablePagination
-                                component="div"
-                                count={totalNotes}
-                                page={page}
-                                onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchNotes({ page: p, size: pageSize })); }}
-                                rowsPerPage={pageSize}
-                                onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
-                                rowsPerPageOptions={[5, 10, 25]}
-                            />
-                        </>
+                        (() => {
+                            if (!notes || notes.length === 0) {
+                                return (
+                                    <Box sx={{ textAlign: 'center', py: 8 }}>
+                                        <DescriptionIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                                        <Typography color="text.secondary">No notes found</Typography>
+                                    </Box>
+                                );
+                            }
+                            return (
+                                <>
+                                    <TableContainer>
+                                        <Table size={isTablet ? 'small' : 'medium'}>
+                                            <TableHead>
+                                                <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Note</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Session</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600 }}>Uploaded By</TableCell>
+                                                    <TableCell sx={{ fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Date</TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {notes.map((note) => (
+                                                    <TableRow key={note.id} hover>
+                                                        <TableCell>
+                                                            <Box>
+                                                                <Typography variant="body2" fontWeight={600}>{note.title}</Typography>
+                                                                <Typography variant="caption" color="text.secondary">{note.description?.slice(0, 120)}</Typography>
+                                                            </Box>
+                                                        </TableCell>
+                                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                                            <Typography variant="body2">{note.sessionTitle ?? note.sessionId}</Typography>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Typography variant="body2">{renderUploader(note)}</Typography>
+                                                        </TableCell>
+                                                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                                                            <Typography variant="caption">{note.createdAt ? new Date(note.createdAt).toLocaleDateString() : ''}</Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Tooltip title="View">
+                                                                <IconButton size="small" onClick={() => { setSelectedNote(note); setViewDialogOpen(true); }}>
+                                                                    <VisibilityIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Delete">
+                                                                <IconButton size="small" color="error" onClick={() => { setSelectedNote(note); setDeleteDialogOpen(true); }}>
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                    <TablePagination
+                                        component="div"
+                                        count={totalNotes}
+                                        page={page}
+                                        onPageChange={(_, p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchNotes({ page: p, size: pageSize })); }}
+                                        rowsPerPage={pageSize}
+                                        onRowsPerPageChange={(e) => { dispatch(setKuppiPageSize(parseInt(e.target.value, 10))); dispatch(setKuppiCurrentPage(0)); }}
+                                        rowsPerPageOptions={[5, 10, 25]}
+                                    />
+                                </>
+                            );
+                        })()
                     )}
                 </MotionCard>
-            )}
+            </Box>
+
+            {/* Notes Dialog for session */}
+            <Dialog open={notesDialogOpen} onClose={() => setNotesDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Session Notes</DialogTitle>
+                <DialogContent>
+                    {selectedSession ? <SessionNotesList sessionId={selectedSession.id} /> : <Typography>No session selected</Typography>}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setNotesDialogOpen(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Reschedule Modal */}
+            <RescheduleSessionModal open={rescheduleOpen} session={selectedSession} onClose={() => setRescheduleOpen(false)} onSuccess={() => { setRescheduleOpen(false); handleRefresh(); }} />
 
             {/* Application Action Menu */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>

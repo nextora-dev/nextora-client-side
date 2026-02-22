@@ -162,14 +162,14 @@ export default function TutorDetailPage() {
                 <Box
                     sx={{
                         height: 160,
-                        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 50%, #6366F1 100%)`,
+                        background: theme.palette.background.paper,
                         position: 'relative',
                     }}
                 >
-                    <Box sx={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1px, transparent 0)', backgroundSize: '20px 20px' }} />
+                    <Box sx={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 2px, transparent 0)', backgroundSize: '20px 20px' }} />
                 </Box>
 
-                <CardContent sx={{ p: 3, pt: 0, mt: -8, position: 'relative', zIndex: 1 }}>
+                <CardContent sx={{ p: 3, pt: 0, mt: -16, position: 'relative', zIndex: 1 }}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'center', sm: 'flex-end' }}>
                         <Avatar
                             src={student.profilePictureUrl || undefined}
@@ -190,7 +190,6 @@ export default function TutorDetailPage() {
                         <Box sx={{ flex: 1, textAlign: { xs: 'center', sm: 'left' }, pb: 0.5 }}>
                             <Stack direction="row" alignItems="center" spacing={1} justifyContent={{ xs: 'center', sm: 'flex-start' }}>
                                 <Typography variant="h4" fontWeight={700}>{student.fullName}</Typography>
-                                <VerifiedIcon sx={{ fontSize: 22, color: 'primary.main' }} />
                             </Stack>
                             <Stack direction="row" alignItems="center" spacing={0.5} justifyContent={{ xs: 'center', sm: 'flex-start' }} sx={{ mt: 0.5 }}>
                                 <SchoolIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -210,10 +209,6 @@ export default function TutorDetailPage() {
                                     }}
                                 />
                                 <Chip label={student.faculty} size="small" variant="outlined" sx={{ borderColor: 'divider', fontWeight: 500 }} />
-                                <Stack direction="row" alignItems="center" spacing={0.3}>
-                                    <StarIcon sx={{ fontSize: 18, color: 'warning.main' }} />
-                                    <Typography variant="body2" fontWeight={700}>{(student.kuppiRating ?? 0).toFixed(1)}</Typography>
-                                </Stack>
                             </Stack>
                         </Box>
                     </Stack>
@@ -489,3 +484,4 @@ export default function TutorDetailPage() {
         </MotionBox>
     );
 }
+

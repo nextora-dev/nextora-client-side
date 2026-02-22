@@ -6,7 +6,7 @@
 import { KuppiSession, KuppiHost } from '@/types/kuppi';
 
 // Sample Hosts
-export const SAMPLE_HOSTS: KuppiHost[] = [
+export const SAMPLE_HOSTS = [
     {
         id: 'host-1',
         name: 'Sarah Johnson',
@@ -47,7 +47,7 @@ export const SAMPLE_HOSTS: KuppiHost[] = [
         sessionsHosted: 15,
         expertise: ['Machine Learning', 'Python', 'TensorFlow'],
     },
-];
+] as unknown as KuppiHost[];
 
 // Sample Sessions
 export const SAMPLE_SESSIONS: KuppiSession[] = [

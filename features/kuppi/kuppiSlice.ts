@@ -23,6 +23,8 @@ import {
     KuppiStudentSearchByNameParams,
     KuppiStudentSearchBySubjectParams,
     Faculty, UpdateKuppiNoteRequest,
+    // Common types used below
+    KuppiDateRangeParams,
 } from './types';
 
 // ============================================================================
@@ -36,11 +38,18 @@ interface KuppiState {
     selectedSession: KuppiSessionResponse | null;
     totalSessions: number;
 
+    // Session search results (by subject/host/date)
+    sessionSearchResults: KuppiSessionResponse[];
+    sessionSearchTotal: number;
+
     // Notes
     notes: KuppiNoteResponse[];
     myNotes: KuppiNoteResponse[];
     selectedNote: KuppiNoteResponse | null;
     totalNotes: number;
+
+    // Notes keyed by session
+    notesBySession: Record<number, KuppiNoteResponse[]>;
 
     // Applications (Student)
     myApplications: KuppiApplicationResponse[];
@@ -123,10 +132,16 @@ const initialState: KuppiState = {
     selectedSession: null,
     totalSessions: 0,
 
+    // Session search
+    sessionSearchResults: [],
+    sessionSearchTotal: 0,
+
     notes: [],
     myNotes: [],
     selectedNote: null,
     totalNotes: 0,
+
+    notesBySession: {},
 
     myApplications: [],
     activeApplication: null,
@@ -644,7 +659,70 @@ export const fetchTopRatedKuppiStudents = createAsyncThunk(
     }
 );
 
+export const rescheduleSessionAsync = createAsyncThunk(
+    'kuppi/rescheduleSession',
+    async ({ id, newStartTime, newEndTime }: { id: number; newStartTime: string; newEndTime: string }, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.rescheduleSession(id, newStartTime, newEndTime);
+            return response;
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to reschedule session');
+        }
+    }
+);
 
+export const searchSessionsBySubjectAsync = createAsyncThunk(
+    'kuppi/searchSessionsBySubject',
+    async ({ subject, params }: { subject: string; params?: KuppiPaginationParams }, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.searchSessionsBySubject(subject, params || {});
+            return response;
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to search sessions by subject');
+        }
+    }
+);
+
+export const searchSessionsByHostAsync = createAsyncThunk(
+    'kuppi/searchSessionsByHost',
+    async ({ hostName, params }: { hostName: string; params?: KuppiPaginationParams }, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.searchSessionsByHost(hostName, params || {});
+            return response;
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to search sessions by host');
+        }
+    }
+);
+
+export const searchSessionsByDateRangeAsync = createAsyncThunk(
+    'kuppi/searchSessionsByDateRange',
+    async (params: KuppiDateRangeParams, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.searchSessionsByDateRange(params);
+            return response;
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to search sessions by date range');
+        }
+    }
+);
+
+export const fetchNotesBySessionAsync = createAsyncThunk(
+    'kuppi/fetchNotesBySession',
+    async (sessionId: number, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.getNotesBySession(sessionId);
+            return { sessionId, data: response };
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to fetch notes by session');
+        }
+    }
+);
 
 // ============================================================================
 // Slice
@@ -1055,33 +1133,32 @@ export const selectKuppiMySessions = (state: { kuppi: KuppiState }) => state.kup
 export const selectKuppiSelectedSession = (state: { kuppi: KuppiState }) => state.kuppi.selectedSession;
 export const selectKuppiTotalSessions = (state: { kuppi: KuppiState }) => state.kuppi.totalSessions;
 
+export const selectKuppiSessionSearchResults = (state: { kuppi: KuppiState }) => state.kuppi.sessionSearchResults;
+export const selectKuppiSessionSearchTotal = (state: { kuppi: KuppiState }) => state.kuppi.sessionSearchTotal;
+
 export const selectKuppiNotes = (state: { kuppi: KuppiState }) => state.kuppi.notes;
 export const selectKuppiMyNotes = (state: { kuppi: KuppiState }) => state.kuppi.myNotes;
 export const selectKuppiSelectedNote = (state: { kuppi: KuppiState }) => state.kuppi.selectedNote;
 export const selectKuppiTotalNotes = (state: { kuppi: KuppiState }) => state.kuppi.totalNotes;
 
-export const selectKuppiMyApplications = (state: { kuppi: KuppiState }) => state.kuppi.myApplications;
-export const selectKuppiActiveApplication = (state: { kuppi: KuppiState }) => state.kuppi.activeApplication;
+export const selectKuppiNotesBySession = (sessionId: number) => (state: { kuppi: KuppiState }) => state.kuppi.notesBySession[sessionId] || [];
+
+// Additional selectors expected across the app
+export const selectKuppiAllApplications = (state: { kuppi: KuppiState }) => state.kuppi.allApplications;
+export const selectKuppiTotalApplications = (state: { kuppi: KuppiState }) => state.kuppi.totalApplications;
+export const selectKuppiApplicationStats = (state: { kuppi: KuppiState }) => state.kuppi.applicationStats;
+export const selectKuppiSelectedApplication = (state: { kuppi: KuppiState }) => state.kuppi.selectedApplication;
+export const selectKuppiPlatformStats = (state: { kuppi: KuppiState }) => state.kuppi.platformStats;
+
 export const selectKuppiCanApply = (state: { kuppi: KuppiState }) => state.kuppi.canApply;
 export const selectKuppiIsKuppiStudent = (state: { kuppi: KuppiState }) => state.kuppi.isKuppiStudent;
 
-export const selectKuppiAllApplications = (state: { kuppi: KuppiState }) => state.kuppi.allApplications;
-export const selectKuppiSelectedApplication = (state: { kuppi: KuppiState }) => state.kuppi.selectedApplication;
-export const selectKuppiTotalApplications = (state: { kuppi: KuppiState }) => state.kuppi.totalApplications;
-export const selectKuppiApplicationStats = (state: { kuppi: KuppiState }) => state.kuppi.applicationStats;
-
-export const selectKuppiMyAnalytics = (state: { kuppi: KuppiState }) => state.kuppi.myAnalytics;
-export const selectKuppiPlatformStats = (state: { kuppi: KuppiState }) => state.kuppi.platformStats;
-
-// Kuppi Students Selectors
 export const selectKuppiStudents = (state: { kuppi: KuppiState }) => state.kuppi.kuppiStudents;
-export const selectSelectedKuppiStudent = (state: { kuppi: KuppiState }) => state.kuppi.selectedKuppiStudent;
 export const selectTopRatedKuppiStudents = (state: { kuppi: KuppiState }) => state.kuppi.topRatedKuppiStudents;
 export const selectTotalKuppiStudents = (state: { kuppi: KuppiState }) => state.kuppi.totalKuppiStudents;
 export const selectKuppiStudentsLoading = (state: { kuppi: KuppiState }) => state.kuppi.isKuppiStudentsLoading;
+export const selectSelectedKuppiStudent = (state: { kuppi: KuppiState }) => state.kuppi.selectedKuppiStudent;
 export const selectKuppiStudentDetailLoading = (state: { kuppi: KuppiState }) => state.kuppi.isKuppiStudentDetailLoading;
-
-
 
 export const selectKuppiCurrentPage = (state: { kuppi: KuppiState }) => state.kuppi.currentPage;
 export const selectKuppiPageSize = (state: { kuppi: KuppiState }) => state.kuppi.pageSize;

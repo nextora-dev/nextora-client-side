@@ -375,7 +375,7 @@ export default function KuppiTutorsPage() {
                                                 {/* ── Avatar + Name ── */}
                                                 <Stack direction="row" spacing={2} alignItems="center">
                                                     <Avatar
-                                                        src={student.profilePictureUrl || undefined}
+                                                         src={student.profilePictureUrl || undefined}
                                                         sx={{
                                                             width: 56,
                                                             height: 56,

@@ -28,9 +28,7 @@ export interface KuppiSessionResponse {
     liveLink: string;
     meetingPlatform: string | null;
     viewCount: number;
-    hostId: number;
-    hostName: string;
-    hostEmail: string;
+    host: Host;
     createdAt: string;
     updatedAt: string;
     isActive: boolean;
@@ -101,6 +99,30 @@ export interface KuppiAnalyticsResponse {
     timestamp: string;
 }
 
+// Host
+export interface Host {
+    id: number;
+    studentId: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    email: string;
+    profilePictureUrl: string | null;
+    batch: string;
+    program: string;
+    faculty: Faculty;
+    kuppiSubjects: string[];
+    kuppiExperienceLevel: ExperienceLevel;
+    kuppiRating: number;
+    kuppiAvailability: string;
+    isActive: boolean;
+    // Optional convenience / legacy fields used in some components
+    name?: string; // convenience alias for fullName
+    rating?: number; // alias for kuppiRating
+    sessionsHosted?: number; // optional count
+    department?: string; // optional department
+}
+
 // ============================================================================
 // Notes Types
 // ============================================================================
@@ -119,11 +141,12 @@ export interface KuppiNoteResponse {
     viewCount: number;
     sessionId: number | null;
     sessionTitle: string | null;
-    uploadedById: number;
-    uploaderName: string;
+    uploader: Host;
     createdAt: string;
     updatedAt: string;
     isActive: boolean;
+    // convenience alias used in some UI components
+    uploaderName?: string;
 }
 
 export interface CreateKuppiNoteRequest {
@@ -426,5 +449,4 @@ export interface KuppiStudentSearchByNameParams extends KuppiPaginationParams {
 export interface KuppiStudentSearchBySubjectParams extends KuppiPaginationParams {
     subject: string;
 }
-
 

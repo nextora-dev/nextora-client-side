@@ -105,19 +105,6 @@ const formatDateTime = (dateStr: string) => {
     };
 };
 
-const getRelativeTime = (dateStr: string | null): string => {
-    if (!dateStr) return '';
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    if (days < 30) return `${days}d ago`;
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
 export default function KuppiPage() {
     const router = useRouter();
     const theme = useTheme();
@@ -610,6 +597,7 @@ export default function KuppiPage() {
                                                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                                                         <Stack direction="row" alignItems="center" spacing={1.5}>
                                                             <Avatar
+                                                                src={session.host.profilePictureUrl || undefined}
                                                                 sx={{
                                                                     width: 36,
                                                                     height: 36,
@@ -621,10 +609,10 @@ export default function KuppiPage() {
                                                                     borderColor: alpha(theme.palette.primary.main, 0.2),
                                                                 }}
                                                             >
-                                                                {session.hostName?.[0]?.toUpperCase() || 'H'}
+                                                                {session.host.fullName?.[0]?.toUpperCase() || 'H'}
                                                             </Avatar>
                                                             <Box>
-                                                                <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2 }}>{session.hostName}</Typography>
+                                                                <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2 }}>{session.host.fullName}</Typography>
                                                                 <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>Host</Typography>
                                                             </Box>
                                                         </Stack>
