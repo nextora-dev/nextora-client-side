@@ -72,15 +72,16 @@ export default function SessionSearchPanel({ onResults }: Props) {
     };
 
     return (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+        <Stack spacing={2}>
+            {/* Search by Subject/Host */}
             <TextField
-                placeholder="Search sessions..."
+                placeholder="Search by subject or host name... (Press Enter to search)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 size="small"
+                fullWidth
                 sx={{
-                    maxWidth: { sm: 320 },
                     '& .MuiOutlinedInput-root': {
                         borderRadius: 1,
                         '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
@@ -91,14 +92,12 @@ export default function SessionSearchPanel({ onResults }: Props) {
                     input: {
                         startAdornment: (
                             <InputAdornment position="start">
-                                <IconButton size="small" onClick={handleSearch}>
-                                    <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                </IconButton>
+                                <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                             </InputAdornment>
                         ),
                         endAdornment: searchQuery ? (
                             <InputAdornment position="end">
-                                <IconButton size="small" onClick={handleClear}>
+                                <IconButton size="small" onClick={handleClear} edge="end">
                                     <CloseIcon fontSize="small" />
                                 </IconButton>
                             </InputAdornment>
@@ -107,26 +106,37 @@ export default function SessionSearchPanel({ onResults }: Props) {
                 }}
             />
 
-            {/* Date range fields unchanged in UI; support Enter via onKeyDown on inputs */}
-            <TextField
-                label="From"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleDateSearch()}
-                size="small"
-                InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-                label="To"
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleDateSearch()}
-                size="small"
-                InputLabelProps={{ shrink: true }}
-            />
-            <Button variant="contained" onClick={handleDateSearch}>Search Date</Button>
+            {/* Date range search */}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                <TextField
+                    label="From Date"
+                    type="date"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleDateSearch()}
+                    size="small"
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    sx={{ flexGrow: 1 }}
+                />
+                <TextField
+                    label="To Date"
+                    type="date"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleDateSearch()}
+                    size="small"
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    sx={{ flexGrow: 1 }}
+                />
+                <Button
+                    variant="outlined"
+                    onClick={handleDateSearch}
+                    disabled={!from || !to}
+                    sx={{ minWidth: 100 }}
+                >
+                    Search Date
+                </Button>
+            </Stack>
         </Stack>
     );
 }

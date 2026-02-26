@@ -26,7 +26,6 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    InputAdornment,
     Alert,
     Snackbar,
     CircularProgress,
@@ -37,10 +36,8 @@ import {
     useMediaQuery,
     Tabs,
     Tab,
-    Paper,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -50,19 +47,17 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import CloseIcon from '@mui/icons-material/Close';
 import PendingIcon from '@mui/icons-material/Pending';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import GroupIcon from '@mui/icons-material/Group';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import SchoolIcon from '@mui/icons-material/School';
 import StarIcon from '@mui/icons-material/Star';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import EventIcon from '@mui/icons-material/Event';
 import DescriptionIcon from '@mui/icons-material/Description';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import DownloadIcon from '@mui/icons-material/Download';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -76,10 +71,8 @@ import {
     fetchNotes,
     setKuppiCurrentPage,
     setKuppiPageSize,
-    clearKuppiSelectedApplication,
     clearKuppiError,
     clearKuppiSuccessMessage,
-    clearKuppiSelectedSession,
     selectKuppiAllApplications,
     selectKuppiTotalApplications,
     selectKuppiApplicationStats,
@@ -98,7 +91,9 @@ import {
     selectKuppiIsCreating,
     selectKuppiIsUpdating,
     selectKuppiIsDeleting,
-    deleteSessionAsync,
+    adminSoftDeleteSessionAsync,
+    adminUpdateSessionAsync,
+    UpdateKuppiSessionRequest,
     deleteNoteAsync,
     KuppiApplicationResponse,
     KuppiSessionResponse,
@@ -167,7 +162,6 @@ const getSessionStatusIcon = (status: SessionStatus) => {
 export default function AdminKuppiDashboard() {
     const theme = useTheme();
     const dispatch = useAppDispatch();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
     // Selectors
@@ -194,7 +188,6 @@ export default function AdminKuppiDashboard() {
     // mainTab: 0 = Applications, 1 = Sessions, 2 = Notes
     const [mainTab, setMainTab] = useState(0);
     const [applicationStatusFilter, setApplicationStatusFilter] = useState<ApplicationStatus | ''>('');
-    const [searchQuery, setSearchQuery] = useState('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedApp, setSelectedApp] = useState<KuppiApplicationResponse | null>(null);
     const [selectedSession, setSelectedSession] = useState<KuppiSessionResponse | null>(null);
@@ -212,6 +205,9 @@ export default function AdminKuppiDashboard() {
     const [filteredSessions, setFilteredSessions] = useState<KuppiSessionResponse[] | null>(null);
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editForm, setEditForm] = useState<Partial<UpdateKuppiSessionRequest>>({});
+    const isSessionUpdating = useAppSelector(selectKuppiIsUpdating);
 
     // Fetch data on mount
     useEffect(() => {
@@ -307,7 +303,7 @@ export default function AdminKuppiDashboard() {
             setActionLoading(true);
             try {
                 // dispatch slice thunk and wait for result
-                await dispatch(deleteSessionAsync(selectedSession.id)).unwrap();
+                await dispatch(adminSoftDeleteSessionAsync(selectedSession.id)).unwrap();
                 setDeleteDialogOpen(false);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Session deleted', severity: 'success' });
@@ -317,6 +313,41 @@ export default function AdminKuppiDashboard() {
             } finally {
                 setActionLoading(false);
             }
+        }
+    };
+
+    // Open edit dialog and populate form
+    const handleOpenEdit = (session: KuppiSessionResponse) => {
+        setSelectedSession(session);
+        setEditForm({
+            title: session.title,
+            description: session.description ?? undefined,
+            subject: session.subject,
+            scheduledStartTime: session.scheduledStartTime,
+            scheduledEndTime: session.scheduledEndTime,
+            liveLink: session.liveLink,
+            meetingPlatform: session.meetingPlatform ?? undefined,
+        });
+        setEditDialogOpen(true);
+    };
+
+    const handleEditChange = (key: keyof UpdateKuppiSessionRequest, value: any) => {
+        setEditForm(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleSaveEdit = async () => {
+        if (!selectedSession) return;
+        setActionLoading(true);
+        try {
+            await dispatch(adminUpdateSessionAsync({ id: selectedSession.id, data: editForm })).unwrap();
+            setEditDialogOpen(false);
+            handleRefresh();
+            setSnackbar({ open: true, message: 'Session updated', severity: 'success' });
+        } catch (err: unknown) {
+            const message = (err as any)?.message || String(err) || 'Failed to update session';
+            setSnackbar({ open: true, message, severity: 'error' });
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -523,6 +554,11 @@ export default function AdminKuppiDashboard() {
             {/* Sessions Tab (mounted always, hidden when inactive) */}
             <Box role="tabpanel" hidden={mainTab !== 1} sx={{ display: mainTab === 1 ? 'block' : 'none' }}>
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                    {/* Search Panel - Always visible */}
+                    <Box sx={{ mb: 2, p: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                        <SessionSearchPanel onResults={(results) => setFilteredSessions(results)} />
+                    </Box>
+
                     {isLoading ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
                     ) : (
@@ -538,9 +574,6 @@ export default function AdminKuppiDashboard() {
                             }
                             return (
                                 <>
-                                    <Box sx={{ mb: 2, p: 2}}>
-                                        <SessionSearchPanel onResults={(results) => setFilteredSessions(results)} />
-                                    </Box>
                                     <TableContainer>
                                         <Table size={isTablet ? 'small' : 'medium'}>
                                             <TableHead>
@@ -583,6 +616,11 @@ export default function AdminKuppiDashboard() {
                                                             <Tooltip title="Reschedule">
                                                                 <IconButton size="small" onClick={() => { setSelectedSession(session); setRescheduleOpen(true); }}>
                                                                     <CalendarTodayIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Edit">
+                                                                <IconButton size="small" onClick={() => handleOpenEdit(session)}>
+                                                                    <EditIcon fontSize="small" />
                                                                 </IconButton>
                                                             </Tooltip>
                                                             <Tooltip title="Notes">
@@ -709,6 +747,26 @@ export default function AdminKuppiDashboard() {
 
             {/* Reschedule Modal */}
             <RescheduleSessionModal open={rescheduleOpen} session={selectedSession} onClose={() => setRescheduleOpen(false)} onSuccess={() => { setRescheduleOpen(false); handleRefresh(); }} />
+
+            {/* Edit Session Dialog (Admin) */}
+            <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Edit Session</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField label="Title" fullWidth value={editForm.title ?? ''} onChange={(e) => handleEditChange('title', e.target.value)} />
+                        <TextField label="Description" fullWidth multiline rows={3} value={editForm.description ?? ''} onChange={(e) => handleEditChange('description', e.target.value)} />
+                        <TextField label="Subject" fullWidth value={editForm.subject ?? ''} onChange={(e) => handleEditChange('subject', e.target.value)} />
+                        <TextField label="Live Link" fullWidth value={editForm.liveLink ?? ''} onChange={(e) => handleEditChange('liveLink', e.target.value)} />
+                        <TextField label="Meeting Platform" fullWidth value={editForm.meetingPlatform ?? ''} onChange={(e) => handleEditChange('meetingPlatform', e.target.value)} />
+                        <TextField label="Start Time" type="datetime-local" fullWidth value={editForm.scheduledStartTime ? new Date(editForm.scheduledStartTime).toISOString().slice(0,16) : ''} onChange={(e) => handleEditChange('scheduledStartTime', new Date(e.target.value).toISOString())} InputLabelProps={{ shrink: true }} />
+                        <TextField label="End Time" type="datetime-local" fullWidth value={editForm.scheduledEndTime ? new Date(editForm.scheduledEndTime).toISOString().slice(0,16) : ''} onChange={(e) => handleEditChange('scheduledEndTime', new Date(e.target.value).toISOString())} InputLabelProps={{ shrink: true }} />
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={handleSaveEdit} disabled={actionLoading || isSessionUpdating}>{actionLoading || isSessionUpdating ? <CircularProgress size={20} /> : 'Save'}</Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Application Action Menu */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>

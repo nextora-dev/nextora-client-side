@@ -389,6 +389,14 @@ export async function adminUpdateSession(id: number, data: UpdateKuppiSessionReq
     return response.data;
 }
 
+// Soft-delete a session as an admin (non-permanent)
+export async function adminSoftDeleteSession(id: number): Promise<KuppiActionResponse> {
+    // Note: backend currently exposes DELETE /admin/kuppi/sessions/:id for admin deletes.
+    // We treat this as a soft-delete at the client level (server should implement soft behavior).
+    const response = await apiClient.delete<KuppiActionResponse>(KUPPI_ENDPOINTS.ADMIN_SESSION(id));
+    return response.data;
+}
+
 export async function adminDeleteSession(id: number): Promise<KuppiActionResponse> {
     const response = await apiClient.delete<KuppiActionResponse>(KUPPI_ENDPOINTS.ADMIN_SESSION(id));
     return response.data;
@@ -503,5 +511,4 @@ export async function getTopRatedKuppiStudents(params: KuppiPaginationParams = {
     const response = await apiClient.get<KuppiStudentsResponse>(url);
     return response.data;
 }
-
 

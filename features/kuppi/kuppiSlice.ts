@@ -315,6 +315,34 @@ export const deleteSessionAsync = createAsyncThunk(
     }
 );
 
+// New: Admin soft-delete session (calls admin-specific endpoint)
+export const adminSoftDeleteSessionAsync = createAsyncThunk(
+    'kuppi/adminSoftDeleteSession',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.adminSoftDeleteSession(id);
+            return { id, response };
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to delete session (admin)');
+        }
+    }
+);
+
+// New: Admin update session (uses admin endpoint)
+export const adminUpdateSessionAsync = createAsyncThunk(
+    'kuppi/adminUpdateSession',
+    async ({ id, data }: { id: number; data: UpdateKuppiSessionRequest }, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.adminUpdateSession(id, data);
+            return response; // response is expected to be KuppiSessionDetailResponse-like (message + data)
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to update session (admin)');
+        }
+    }
+);
+
 // ============================================================================
 // Async Thunks - Notes
 // ============================================================================
@@ -860,6 +888,45 @@ const kuppiSlice = createSlice({
             state.error = action.payload as string;
         });
 
+        // Admin: Soft-delete session (remove from lists)
+        builder.addCase(adminSoftDeleteSessionAsync.pending, (state) => {
+            state.isDeleting = true;
+        });
+        builder.addCase(adminSoftDeleteSessionAsync.fulfilled, (state, action) => {
+            state.isDeleting = false;
+            const id = action.payload?.id;
+            if (typeof id === 'number') {
+                state.sessions = state.sessions.filter(s => s.id !== id);
+                state.mySessions = state.mySessions.filter(s => s.id !== id);
+                if (state.selectedSession?.id === id) state.selectedSession = null;
+                state.totalSessions = Math.max(0, state.totalSessions - 1);
+                state.successMessage = action.payload.response?.message || 'Session deleted successfully (admin)';
+            }
+        });
+        builder.addCase(adminSoftDeleteSessionAsync.rejected, (state, action) => {
+            state.isDeleting = false;
+            state.error = action.payload as string;
+        });
+
+        // Admin: Update session
+        builder.addCase(adminUpdateSessionAsync.pending, (state) => {
+            state.isUpdating = true;
+        });
+        builder.addCase(adminUpdateSessionAsync.fulfilled, (state, action) => {
+            state.isUpdating = false;
+            const updated = action.payload?.data;
+            if (updated) {
+                state.sessions = state.sessions.map(s => (s.id === updated.id ? updated : s));
+                state.mySessions = state.mySessions.map(s => (s.id === updated.id ? updated : s));
+                if (state.selectedSession?.id === updated.id) state.selectedSession = updated;
+                state.successMessage = action.payload.message || 'Session updated successfully (admin)';
+            }
+        });
+        builder.addCase(adminUpdateSessionAsync.rejected, (state, action) => {
+            state.isUpdating = false;
+            state.error = action.payload as string;
+        });
+
         // Fetch Notes
         builder.addCase(fetchNotes.pending, (state) => {
             state.isNoteLoading = true;
@@ -1149,6 +1216,7 @@ export const selectKuppiTotalApplications = (state: { kuppi: KuppiState }) => st
 export const selectKuppiApplicationStats = (state: { kuppi: KuppiState }) => state.kuppi.applicationStats;
 export const selectKuppiSelectedApplication = (state: { kuppi: KuppiState }) => state.kuppi.selectedApplication;
 export const selectKuppiPlatformStats = (state: { kuppi: KuppiState }) => state.kuppi.platformStats;
+export const selectKuppiMyAnalytics = (state: { kuppi: KuppiState }) => state.kuppi.myAnalytics;
 
 export const selectKuppiCanApply = (state: { kuppi: KuppiState }) => state.kuppi.canApply;
 export const selectKuppiIsKuppiStudent = (state: { kuppi: KuppiState }) => state.kuppi.isKuppiStudent;
