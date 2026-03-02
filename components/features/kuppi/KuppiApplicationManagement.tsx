@@ -61,6 +61,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import EmailIcon from '@mui/icons-material/Email';
 import BadgeIcon from '@mui/icons-material/Badge';
 import StarIcon from '@mui/icons-material/Star';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import {
     KuppiApplicationResponse,
@@ -88,6 +89,7 @@ const STATUS_COLORS: Record<ApplicationStatus, string> = {
     APPROVED: '#10B981',
     REJECTED: '#EF4444',
     CANCELLED: '#6B7280',
+    EXPIRED: '#9CA3AF',
 };
 
 // Status icons
@@ -98,6 +100,7 @@ const getStatusIcon = (status: ApplicationStatus) => {
         case 'APPROVED': return <CheckCircleIcon fontSize="small" />;
         case 'REJECTED': return <CancelIcon fontSize="small" />;
         case 'CANCELLED': return <CancelIcon fontSize="small" />;
+        case 'EXPIRED': return <ScheduleIcon fontSize="small" />;
         default: return undefined;
     }
 };

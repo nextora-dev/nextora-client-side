@@ -42,8 +42,10 @@ import AnnouncementIcon from '@mui/icons-material/Announcement';
 import EventIcon from '@mui/icons-material/Event';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
 import SettingsIcon from '@mui/icons-material/Settings';
-import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import SchoolIcon from '@mui/icons-material/School';
+import AlarmIcon from '@mui/icons-material/Alarm';
 import { usePushNotificationContext } from '@/contexts/PushNotificationContext';
+import { useNotificationHistory } from '@/hooks/useNotificationHistory';
 import type { DisplayedNotification, NotificationType } from '@/types/push-notification.d';
 
 /**
@@ -61,6 +63,10 @@ function getNotificationIcon(type: NotificationType) {
       return <ErrorIcon color="error" />;
     case 'REMINDER':
       return <WarningIcon color="warning" />;
+    case 'KUPPI_SESSION':
+      return <SchoolIcon color="primary" />;
+    case 'KUPPI_REMINDER':
+      return <AlarmIcon color="warning" />;
     case 'SYSTEM':
     case 'SYSTEM_MESSAGE':
       return <SettingsIcon color="action" />;
@@ -360,7 +366,8 @@ export function EnableNotificationsBanner({ onDismiss }: EnableNotificationsBann
 
 /**
  * Notification List Component
- * Displays list of received notifications
+ * Fetches and displays notification history from the backend.
+ * Merges with any foreground notifications received in the current session.
  */
 interface NotificationListProps {
   maxItems?: number;
@@ -368,15 +375,77 @@ interface NotificationListProps {
 }
 
 export function NotificationList({
-  maxItems = 10,
+  maxItems = 20,
   onNotificationClick,
 }: NotificationListProps) {
-  const { notifications, markAsRead, clearNotifications } = usePushNotificationContext();
+  const { notifications: foregroundNotifications, markAsRead: markForegroundAsRead } =
+    usePushNotificationContext();
+  const {
+    notifications: historyNotifications,
+    unreadCount,
+    isLoading,
+    markAsRead: markHistoryAsRead,
+    markAllAsRead,
+    fetchHistory,
+    hasMore,
+    currentPage,
+  } = useNotificationHistory({ autoFetch: true, pollInterval: 30000, pageSize: maxItems });
 
-  const displayedNotifications = notifications.slice(0, maxItems);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // Merge foreground (in-memory) + backend history, deduplicate by matching title+body+timestamp proximity
+  const mergedNotifications = React.useMemo(() => {
+    const historyMapped: DisplayedNotification[] = historyNotifications.map((h) => ({
+      id: `history-${h.id}`,
+      _historyId: h.id,
+      title: h.title,
+      body: h.body || '',
+      type: (h.type as NotificationType) || 'GENERAL',
+      timestamp: new Date(h.sentAt || h.createdAt),
+      read: h.read,
+      clickAction: h.clickAction || undefined,
+      image: h.imageUrl || undefined,
+    })) as (DisplayedNotification & { _historyId?: number })[];
 
-  if (notifications.length === 0) {
+    // Add foreground notifications that aren't already in history
+    const combined = [...historyMapped];
+    for (const fg of foregroundNotifications) {
+      const isDuplicate = historyMapped.some(
+        (h) =>
+          h.title === fg.title &&
+          h.body === fg.body &&
+          Math.abs(h.timestamp.getTime() - new Date(fg.timestamp).getTime()) < 60000
+      );
+      if (!isDuplicate) {
+        combined.unshift(fg);
+      }
+    }
+
+    // Sort by timestamp descending
+    combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return combined;
+  }, [historyNotifications, foregroundNotifications]);
+
+  const handleNotificationClick = async (notification: DisplayedNotification & { _historyId?: number }) => {
+    // Mark as read on backend if it's a history notification
+    if (notification._historyId) {
+      await markHistoryAsRead(notification._historyId);
+    } else {
+      markForegroundAsRead(notification.id);
+    }
+    onNotificationClick?.(notification);
+  };
+
+  if (isLoading && mergedNotifications.length === 0) {
+    return (
+      <Paper sx={{ p: 3, textAlign: 'center' }}>
+        <CircularProgress size={32} sx={{ mb: 1 }} />
+        <Typography variant="body2" color="text.secondary">
+          Loading notifications...
+        </Typography>
+      </Paper>
+    );
+  }
+
+  if (mergedNotifications.length === 0) {
     return (
       <Paper sx={{ p: 3, textAlign: 'center' }}>
         <NotificationsOffIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
@@ -407,21 +476,18 @@ export function NotificationList({
             Notifications
           </Typography>
         </Box>
-        {notifications.length > 0 && (
-          <IconButton size="small" onClick={clearNotifications} title="Clear all">
-            <DeleteSweepIcon />
-          </IconButton>
+        {unreadCount > 0 && (
+          <Button size="small" onClick={markAllAsRead}>
+            Mark all read
+          </Button>
         )}
       </Box>
 
       <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-        {displayedNotifications.map((notification, index) => (
+        {mergedNotifications.map((notification, index) => (
           <React.Fragment key={notification.id}>
             <ListItemButton
-              onClick={() => {
-                markAsRead(notification.id);
-                onNotificationClick?.(notification);
-              }}
+              onClick={() => handleNotificationClick(notification as DisplayedNotification & { _historyId?: number })}
               sx={{
                 bgcolor: notification.read ? 'transparent' : 'action.hover',
               }}
@@ -462,9 +528,20 @@ export function NotificationList({
                 />
               )}
             </ListItemButton>
-            {index < displayedNotifications.length - 1 && <Divider />}
+            {index < mergedNotifications.length - 1 && <Divider />}
           </React.Fragment>
         ))}
+        {hasMore && (
+          <Box sx={{ p: 1, textAlign: 'center' }}>
+            <Button
+              size="small"
+              onClick={() => fetchHistory(currentPage + 1)}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Load more'}
+            </Button>
+          </Box>
+        )}
       </List>
     </Paper>
   );
@@ -472,14 +549,15 @@ export function NotificationList({
 
 /**
  * Notification Bell with Badge
+ * Shows unread count from backend notification history.
  */
 interface NotificationBellProps {
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export function NotificationBell({ onClick }: NotificationBellProps) {
-  const { notifications, isRegistered } = usePushNotificationContext();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const { isRegistered } = usePushNotificationContext();
+  const { unreadCount } = useNotificationHistory({ autoFetch: true, pollInterval: 30000 });
 
   return (
     <IconButton onClick={onClick} sx={{ color: 'text.secondary' }}>

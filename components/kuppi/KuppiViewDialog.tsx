@@ -65,6 +65,23 @@ export default function KuppiViewDialog({ open, mode, application, session, note
                         <Box><Typography variant="caption" color="text.secondary">Subjects</Typography><Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5, gap: 0.5 }}>{application.subjectsToTeach?.map((s, i) => <Chip key={i} label={s} size="small" />)}</Stack></Box>
                         <Box><Typography variant="caption" color="text.secondary">Motivation</Typography><Typography variant="body2">{application.motivation}</Typography></Box>
                         {application.relevantExperience && <Box><Typography variant="caption" color="text.secondary">Experience</Typography><Typography variant="body2">{application.relevantExperience}</Typography></Box>}
+                        {application.academicResultsUrl && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Academic Results</Typography>
+                                <Box sx={{ mt: 0.5 }}>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        href={application.academicResultsUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        sx={{ textTransform: 'none', borderRadius: 1 }}
+                                    >
+                                        {application.academicResultsFileName || 'View Document'}
+                                    </Button>
+                                </Box>
+                            </Box>
+                        )}
                     </Stack>
                 ) : mode === 'session' && session ? (
                     <Stack spacing={3}>

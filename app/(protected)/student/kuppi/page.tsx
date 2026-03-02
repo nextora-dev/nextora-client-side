@@ -17,7 +17,6 @@ import {
     IconButton,
     Chip,
     Avatar,
-    CircularProgress,
     Snackbar,
     Alert,
     Tabs,
@@ -25,7 +24,6 @@ import {
     Paper,
     Tooltip,
     Skeleton,
-    LinearProgress,
     Divider,
 } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -44,14 +42,13 @@ import EventIcon from '@mui/icons-material/Event';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CloseIcon from '@mui/icons-material/Close';
-import GroupIcon from '@mui/icons-material/Group';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import StarIcon from '@mui/icons-material/Star';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
 import TimerIcon from '@mui/icons-material/Timer';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
 import { useAppDispatch, useAppSelector } from '@/store';
+import HostApplicationForm from './HostApplicationForm';
 import {
     fetchSessions,
     fetchUpcomingSessions,
@@ -96,6 +93,7 @@ const getStatusConfig = (status: SessionStatus | undefined | null) => {
     return STATUS_CONFIG[status];
 };
 
+
 // ── Helpers ──────────────────────────────────────────────────
 const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -124,6 +122,7 @@ export default function KuppiPage() {
     const [activeTab, setActiveTab] = useState(0);
     const [page, setPage] = useState(0);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+    const [showApplicationForm, setShowApplicationForm] = useState(false);
 
     // Fetch sessions on mount
     useEffect(() => {
@@ -131,6 +130,7 @@ export default function KuppiPage() {
         dispatch(checkCanApplyAsync());
         dispatch(checkIsKuppiStudentAsync());
     }, [dispatch]);
+
 
     // Handle tab change
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -173,6 +173,7 @@ export default function KuppiPage() {
         }
     }, [error, successMessage, dispatch]);
 
+
     // Stats
     const stats = [
         { label: 'Total Sessions', value: totalSessions, icon: SchoolIcon, color: '#3B82F6' },
@@ -180,6 +181,10 @@ export default function KuppiPage() {
         { label: 'In Progress', value: sessions.filter(s => s.status === 'IN_PROGRESS').length, icon: VideoCallIcon, color: '#F59E0B' },
         { label: 'Completed', value: sessions.filter(s => s.status === 'COMPLETED').length, icon: CheckCircleIcon, color: '#6B7280' },
     ];
+
+    if (showApplicationForm) {
+        return <HostApplicationForm onBack={() => setShowApplicationForm(false)} />;
+    }
 
     return (
         <MotionBox variants={containerVariants} initial="hidden" animate="show" sx={{ maxWidth: 1400, mx: 'auto' }}>
@@ -195,6 +200,42 @@ export default function KuppiPage() {
                         </Typography>
                     </Box>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        {!isKuppiStudent && (
+                            <Button
+                                variant="outlined"
+                                startIcon={<AssignmentIcon />}
+                                onClick={() => router.push('/student/kuppi/applications')}
+                                size="small"
+                                sx={{
+                                    borderRadius: 1,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    borderColor: 'divider',
+                                    color: 'text.secondary',
+                                    '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                                }}
+                            >
+                                My Applications
+                            </Button>
+                        )}
+                        {isKuppiStudent && (
+                            <Button
+                                variant="outlined"
+                                startIcon={<BarChartIcon />}
+                                onClick={() => router.push('/student/kuppi/analytics')}
+                                size="small"
+                                sx={{
+                                    borderRadius: 1,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    borderColor: 'divider',
+                                    color: 'text.secondary',
+                                    '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                                }}
+                            >
+                                My Analytics
+                            </Button>
+                        )}
                         <Button
                             variant="outlined"
                             startIcon={<PersonIcon />}
@@ -250,8 +291,7 @@ export default function KuppiPage() {
 
             {/* ══════════════  HERO BANNER (non-Kuppi students)  ══════════════ */}
             {!isKuppiStudent && canApply && (
-                <MotionCard
-                    variants={itemVariants}
+                <Card
                     elevation={0}
                     sx={{
                         mb: 4,
@@ -279,7 +319,7 @@ export default function KuppiPage() {
                                 </Typography>
                                 <Button
                                     variant="text"
-                                    onClick={() => router.push('/student/kuppi/hosts')}
+                                    onClick={() => setShowApplicationForm(true)}
                                     sx={{
                                         bgcolor: 'white',
                                         color: 'primary.main',
@@ -300,143 +340,142 @@ export default function KuppiPage() {
                             </Box>
                         </Stack>
                     </Box>
-                </MotionCard>
+                </Card>
             )}
 
             {/* ══════════════  STATS GRID  ══════════════ */}
-            <MotionBox variants={itemVariants} sx={{ mb: 4 }}>
-                <Grid container spacing={2}>
-                    {stats.map((stat, index) => {
-                        const Icon = stat.icon;
-                        return (
-                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
-                                <Card
-                                    elevation={0}
-                                    sx={{
-                                        borderRadius: 1,
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        transition: 'all 0.2s',
-                                        '&:hover': { borderColor: stat.color, boxShadow: `0 4px 16px ${alpha(stat.color, 0.15)}` },
-                                    }}
-                                >
-                                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                                            <Box
-                                                sx={{
-                                                    width: 44,
-                                                    height: 44,
-                                                    borderRadius: 1,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    bgcolor: alpha(stat.color, 0.1),
-                                                    border: '1px solid',
-                                                    borderColor: alpha(stat.color, 0.15),
-                                                }}
-                                            >
-                                                <Icon sx={{ color: stat.color, fontSize: 22 }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.1 }}>{stat.value}</Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>{stat.label}</Typography>
-                                            </Box>
-                                        </Stack>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            </MotionBox>
+            <Box sx={{ mb: 4 }}>
+                    <Grid container spacing={2}>
+                        {stats.map((stat, index) => {
+                            const Icon = stat.icon;
+                            return (
+                                <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                                    <Card
+                                        elevation={0}
+                                        sx={{
+                                            borderRadius: 1,
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            transition: 'all 0.2s',
+                                            '&:hover': { borderColor: stat.color, boxShadow: `0 4px 16px ${alpha(stat.color, 0.15)}` },
+                                        }}
+                                    >
+                                        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                            <Stack direction="row" alignItems="center" spacing={1.5}>
+                                                <Box
+                                                    sx={{
+                                                        width: 44,
+                                                        height: 44,
+                                                        borderRadius: 1,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        bgcolor: alpha(stat.color, 0.1),
+                                                        border: '1px solid',
+                                                        borderColor: alpha(stat.color, 0.15),
+                                                    }}
+                                                >
+                                                    <Icon sx={{ color: stat.color, fontSize: 22 }} />
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.1 }}>{stat.value}</Typography>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>{stat.label}</Typography>
+                                                </Box>
+                                            </Stack>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            );
+                        })}
+                    </Grid>
+                </Box>
 
             {/* ══════════════  FILTERS  ══════════════ */}
-            <MotionCard
-                variants={itemVariants}
+            <Card
                 elevation={0}
-                sx={{
-                    mb: 4,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: alpha(theme.palette.background.paper, 0.8),
-                    backdropFilter: 'blur(12px)',
-                }}
-            >
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
-                        <TextField
-                            placeholder="Search sessions..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            size="small"
-                            sx={{
-                                maxWidth: { sm: 320 },
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 1,
-                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
-                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 1 },
-                                },
-                            }}
-                            slotProps={{
-                                input: {
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <IconButton size="small" onClick={handleSearch} disabled={isLoading}>
-                                                <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                            </IconButton>
-                                        </InputAdornment>
-                                    ),
-                                    endAdornment: searchQuery && (
-                                        <InputAdornment position="end">
-                                            <IconButton size="small" onClick={() => { setSearchQuery(''); dispatch(fetchSessions({ page: 0, size: 10 })); }}>
-                                                <CloseIcon fontSize="small" />
-                                            </IconButton>
-                                        </InputAdornment>
-                                    )
-                                }
-                            }}
-                        />
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Tabs
-                                value={activeTab}
-                                onChange={handleTabChange}
+                    sx={{
+                        mb: 4,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: alpha(theme.palette.background.paper, 0.8),
+                        backdropFilter: 'blur(12px)',
+                    }}
+                >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+                            <TextField
+                                placeholder="Search sessions..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                size="small"
                                 sx={{
-                                    minHeight: 36,
-                                    '& .MuiTab-root': {
-                                        minHeight: 36,
-                                        textTransform: 'none',
-                                        fontWeight: 600,
-                                        fontSize: '0.8125rem',
+                                    maxWidth: { sm: 320 },
+                                    '& .MuiOutlinedInput-root': {
                                         borderRadius: 1,
-                                        px: 2,
+                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 1 },
                                     },
-                                    '& .MuiTabs-indicator': { borderRadius: 1, height: 2 },
                                 }}
-                            >
-                                <Tab label="All Sessions" />
-                                <Tab label="Upcoming" />
-                            </Tabs>
-                            <Tooltip title="Refresh">
-                                <IconButton
-                                    onClick={handleRefresh}
-                                    disabled={isLoading}
-                                    size="small"
+                                slotProps={{
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <IconButton size="small" onClick={handleSearch} disabled={isLoading}>
+                                                    <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                        endAdornment: searchQuery && (
+                                            <InputAdornment position="end">
+                                                <IconButton size="small" onClick={() => { setSearchQuery(''); dispatch(fetchSessions({ page: 0, size: 10 })); }}>
+                                                    <CloseIcon fontSize="small" />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        )
+                                    }
+                                }}
+                            />
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Tabs
+                                    value={activeTab}
+                                    onChange={handleTabChange}
                                     sx={{
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        borderRadius: 1,
-                                        '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                                        minHeight: 36,
+                                        '& .MuiTab-root': {
+                                            minHeight: 36,
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            fontSize: '0.8125rem',
+                                            borderRadius: 1,
+                                            px: 2,
+                                        },
+                                        '& .MuiTabs-indicator': { borderRadius: 1, height: 2 },
                                     }}
                                 >
-                                    <RefreshIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
+                                    <Tab label="All Sessions" />
+                                    <Tab label="Upcoming" />
+                                </Tabs>
+                                <Tooltip title="Refresh">
+                                    <IconButton
+                                        onClick={handleRefresh}
+                                        disabled={isLoading}
+                                        size="small"
+                                        sx={{
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            borderRadius: 1,
+                                            '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                                        }}
+                                    >
+                                        <RefreshIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            </Stack>
                         </Stack>
-                    </Stack>
-                </CardContent>
-            </MotionCard>
+                    </CardContent>
+                </Card>
 
             {/* ══════════════  SESSIONS GRID  ══════════════ */}
             {isLoading ? (
@@ -486,8 +525,8 @@ export default function KuppiPage() {
                     </Typography>
                 </Paper>
             ) : (
-                <Grid container spacing={3}>
-                    <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="popLayout">
+                    <Grid container spacing={3}>
                         {sessions.map((session, index) => {
                             const { date, time } = formatDateTime(session.scheduledStartTime);
                             const sc = getStatusConfig(session.status);
@@ -499,11 +538,10 @@ export default function KuppiPage() {
                                 <Grid size={{ xs: 12, md: 6 }} key={session.id}>
                                     <Link href={`/student/kuppi/${session.id}`} style={{ textDecoration: 'none' }}>
                                         <MotionCard
-                                            variants={itemVariants}
-                                            initial="hidden"
-                                            animate="show"
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.95 }}
-                                            transition={{ delay: index * 0.04 }}
+                                            transition={{ duration: 0.35, delay: index * 0.04 }}
                                             elevation={0}
                                             sx={{
                                                 borderRadius: 1,
@@ -632,8 +670,8 @@ export default function KuppiPage() {
                                 </Grid>
                             );
                         })}
-                    </AnimatePresence>
-                </Grid>
+                    </Grid>
+                </AnimatePresence>
             )}
 
             {/* Snackbar */}

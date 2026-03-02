@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Box, Typography, Card, CardContent, Button, TextField, Alert,
-    Stepper, Step, StepLabel, alpha, useTheme,
+    Stepper, Step, StepLabel, alpha, useTheme, CircularProgress, Snackbar, MenuItem,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -12,8 +12,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SchoolIcon from '@mui/icons-material/School';
 
 import { useHostApplication } from '@/hooks/useKuppi';
-import { HOST_APPLICATION_STEPS, MIN_HOST_GPA } from '@/lib/constants/kuppi.constants';
+import { HOST_APPLICATION_STEPS, MIN_HOST_GPA, KUPPI_SUBJECTS } from '@/lib/constants/kuppi.constants';
 import { isValidHostGpa } from '@/components/features/kuppi/kuppi.utils';
+import { useAppDispatch } from '@/store';
+import { submitApplicationAsync } from '@/features/kuppi';
 
 const MotionCard = motion.create(Card);
 const MotionBox = motion.create(Box);
@@ -24,6 +26,9 @@ interface HostApplicationFormProps {
 
 export default function HostApplicationForm({ onBack }: HostApplicationFormProps) {
     const theme = useTheme();
+    const dispatch = useAppDispatch();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
     const {
         formData,
         activeStep,
@@ -40,11 +45,31 @@ export default function HostApplicationForm({ onBack }: HostApplicationFormProps
         if (file) setResultFile(file);
     };
 
-    const handleSubmit = () => {
-        // In real app, this would call an API
-        console.log('Submitting application:', { ...formData, resultFile });
-        alert('Application submitted successfully!');
-        onBack();
+    const handleSubmit = async () => {
+        if (!resultFile) {
+            setSnackbar({ open: true, message: 'Please upload your academic results', severity: 'error' });
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await dispatch(submitApplicationAsync({
+                data: {
+                    motivation: formData.motivation,
+                    relevantExperience: formData.experience || undefined,
+                    subjectsToTeach: [formData.subject, formData.topic].filter(Boolean),
+                    preferredExperienceLevel: formData.preferredExperienceLevel as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED',
+                    currentGpa: parseFloat(formData.gpa),
+                    currentSemester: '1',
+                },
+                academicResults: resultFile,
+            })).unwrap();
+            setSnackbar({ open: true, message: 'Application submitted successfully!', severity: 'success' });
+            setTimeout(() => onBack(), 1500);
+        } catch (err: any) {
+            setSnackbar({ open: true, message: err || 'Failed to submit application', severity: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -161,7 +186,7 @@ export default function HostApplicationForm({ onBack }: HostApplicationFormProps
                             <Button
                                 variant="contained"
                                 onClick={handleSubmit}
-                                disabled={!isFormValid}
+                                disabled={!isFormValid || isSubmitting}
                                 color="success"
                                 sx={{
                                     flex: 1,
@@ -170,12 +195,23 @@ export default function HostApplicationForm({ onBack }: HostApplicationFormProps
                                     fontWeight: 600,
                                 }}
                             >
-                                Submit Application
+                                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Submit Application'}
                             </Button>
                         )}
                     </Box>
                 </CardContent>
             </MotionCard>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })} variant="filled" sx={{ borderRadius: 1 }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }
@@ -187,7 +223,7 @@ function AcademicInfoStep({
     onUpdateField,
     onFileUpload
 }: {
-    formData: { gpa: string; subject: string; topic: string; experience: string; motivation: string };
+    formData: { gpa: string; subject: string; topic: string; experience: string; motivation: string; preferredExperienceLevel: string };
     resultFile: File | null;
     onUpdateField: (field: string, value: string) => void;
     onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -262,19 +298,24 @@ function SessionDetailsStep({
     formData,
     onUpdateField
 }: {
-    formData: { gpa: string; subject: string; topic: string; experience: string; motivation: string };
+    formData: { gpa: string; subject: string; topic: string; experience: string; motivation: string; preferredExperienceLevel: string };
     onUpdateField: (field: string, value: string) => void;
 }) {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <TextField
+                select
                 label="Subject You Want to Teach"
                 value={formData.subject}
                 onChange={(e) => onUpdateField('subject', e.target.value)}
-                placeholder="e.g., Data Structures & Algorithms"
                 fullWidth
+                helperText="Select the subject you want to teach"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-            />
+            >
+                {KUPPI_SUBJECTS.filter((s) => s !== 'All Subjects').map((subject) => (
+                    <MenuItem key={subject} value={subject}>{subject}</MenuItem>
+                ))}
+            </TextField>
 
             <TextField
                 label="Specific Topics"
@@ -284,6 +325,20 @@ function SessionDetailsStep({
                 fullWidth
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
+
+            <TextField
+                select
+                label="Teaching Experience Level"
+                value={formData.preferredExperienceLevel}
+                onChange={(e) => onUpdateField('preferredExperienceLevel', e.target.value)}
+                fullWidth
+                helperText="Select your teaching experience level"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            >
+                <MenuItem value="BEGINNER">Beginner</MenuItem>
+                <MenuItem value="INTERMEDIATE">Intermediate</MenuItem>
+                <MenuItem value="ADVANCED">Advanced</MenuItem>
+            </TextField>
 
             <TextField
                 label="Teaching Experience"
@@ -315,15 +370,23 @@ function ReviewStep({
     formData,
     resultFile
 }: {
-    formData: { gpa: string; subject: string; topic: string; experience: string; motivation: string };
+    formData: { gpa: string; subject: string; topic: string; experience: string; motivation: string; preferredExperienceLevel: string };
     resultFile: File | null;
 }) {
+    const experienceLevelLabels: Record<string, string> = {
+        BEGINNER: 'Beginner',
+        INTERMEDIATE: 'Intermediate',
+        ADVANCED: 'Advanced',
+    };
+
     const reviewItems = [
         { label: 'GPA', value: formData.gpa },
         { label: 'Results Uploaded', value: resultFile ? 'Yes' : 'No' },
         { label: 'Subject', value: formData.subject },
         { label: 'Topics', value: formData.topic },
+        { label: 'Teaching Experience Level', value: experienceLevelLabels[formData.preferredExperienceLevel] || formData.preferredExperienceLevel },
         { label: 'Experience', value: formData.experience || 'Not provided' },
+        { label: 'Motivation', value: formData.motivation || 'Not provided' },
     ];
 
     return (

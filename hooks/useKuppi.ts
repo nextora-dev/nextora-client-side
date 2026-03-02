@@ -162,6 +162,7 @@ export function useHostApplication() {
         topic: '',
         experience: '',
         motivation: '',
+        preferredExperienceLevel: 'BEGINNER' as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED',
     });
 
     const updateField = useCallback((field: string, value: string) => {
@@ -197,6 +198,7 @@ export function useHostApplication() {
             topic: '',
             experience: '',
             motivation: '',
+            preferredExperienceLevel: 'BEGINNER',
         });
     }, []);
 

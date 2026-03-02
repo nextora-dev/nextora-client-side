@@ -36,7 +36,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 import { AuthProvider } from '@/providers/AuthProvider';
-import { PushNotificationProvider } from '@/contexts/PushNotificationContext';
+import { PushNotificationWrapper } from '@/providers/PushNotificationWrapper';
 import { NotificationBell, NotificationList } from '@/components/notifications';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { selectUser, logoutAsync } from '@/features/auth/authSlice';
@@ -378,7 +378,7 @@ export default function DashboardLayout({
 
     return (
         <AuthProvider>
-            <PushNotificationProvider>
+            <PushNotificationWrapper isAuthenticated={true} autoRegisterOnAuth={true}>
             <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
                 {/* AppBar */}
                 <AppBar
@@ -636,7 +636,7 @@ export default function DashboardLayout({
                     {children}
                 </Box>
             </Box>
-            </PushNotificationProvider>
+            </PushNotificationWrapper>
         </AuthProvider>
     );
 }

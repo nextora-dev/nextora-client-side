@@ -40,6 +40,7 @@ const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
     APPROVED: '#10B981',
     REJECTED: '#EF4444',
     CANCELLED: '#6B7280',
+    EXPIRED: '#9CA3AF',
 };
 
 export default function ApplicationsTable({ applications, total, page, rowsPerPage, isLoading, isTablet, onOpenMenu, onChangePage, onChangeRowsPerPage }: Props) {

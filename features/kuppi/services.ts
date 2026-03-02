@@ -19,6 +19,7 @@ import {
     UpdateKuppiNoteRequest,
     // Application Types
     KuppiApplicationsResponse,
+    KuppiMyApplicationsResponse,
     KuppiApplicationDetailResponse,
     CreateKuppiApplicationRequest,
     ReviewKuppiApplicationRequest,
@@ -90,8 +91,6 @@ export const KUPPI_ENDPOINTS = {
     ADMIN_APPLICATION_APPROVE: (id: number) => `/admin/kuppi/applications/${id}/approve`,
     ADMIN_APPLICATION_REJECT: (id: number) => `/admin/kuppi/applications/${id}/reject`,
     ADMIN_APPLICATION_UNDER_REVIEW: (id: number) => `/admin/kuppi/applications/${id}/under-review`,
-    ADMIN_SESSION: (id: number) => `/admin/kuppi/sessions/${id}`,
-    ADMIN_NOTE: (id: number) => `/admin/kuppi/notes/${id}`,
     ADMIN_STATS: '/admin/kuppi/stats',
 
     // Super Admin Endpoints
@@ -107,6 +106,8 @@ export const KUPPI_ENDPOINTS = {
     KUPPI_STUDENTS_SEARCH_BY_SUBJECT: '/kuppi/students/search/subject',
     KUPPI_STUDENTS_BY_FACULTY: (faculty: string) => `/kuppi/students/faculty/${faculty}`,
     KUPPI_STUDENTS_TOP_RATED: '/kuppi/students/top-rated',
+    ADMIN_SESSION: (id: number) => `/kuppi/sessions/${id}`,
+    ADMIN_NOTE: (id: number) => `/kuppi/notes/${id}`,
 };
 
 // ============================================================================
@@ -381,13 +382,18 @@ export async function getMyNotes(params: KuppiPaginationParams = {}): Promise<Ku
 // Application Services (Student)
 // ============================================================================
 
-export async function submitApplication(data: CreateKuppiApplicationRequest): Promise<KuppiApplicationDetailResponse> {
-    const response = await apiClient.post<KuppiApplicationDetailResponse>(KUPPI_ENDPOINTS.APPLICATIONS, data);
+export async function submitApplication(data: CreateKuppiApplicationRequest, academicResults: File): Promise<KuppiApplicationDetailResponse> {
+    const formData = new FormData();
+    formData.append('application', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+    formData.append('academicResults', academicResults);
+    const response = await apiClient.post<KuppiApplicationDetailResponse>(KUPPI_ENDPOINTS.APPLICATIONS, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
 }
 
-export async function getMyApplications(): Promise<KuppiApplicationsResponse> {
-    const response = await apiClient.get<KuppiApplicationsResponse>(KUPPI_ENDPOINTS.MY_APPLICATIONS);
+export async function getMyApplications(): Promise<KuppiMyApplicationsResponse> {
+    const response = await apiClient.get<KuppiMyApplicationsResponse>(KUPPI_ENDPOINTS.MY_APPLICATIONS);
     return response.data;
 }
 
@@ -476,38 +482,13 @@ export async function adminMarkUnderReview(id: number): Promise<KuppiApplication
     return response.data;
 }
 
-export async function adminUpdateSession(id: number, data: UpdateKuppiSessionRequest): Promise<KuppiSessionDetailResponse> {
-    const response = await apiClient.put<KuppiSessionDetailResponse>(KUPPI_ENDPOINTS.ADMIN_SESSION(id), data);
-    return response.data;
-}
-
 // Soft-delete a session as an admin (non-permanent)
 export async function adminSoftDeleteSession(id: number): Promise<KuppiActionResponse> {
-    // Note: backend currently exposes DELETE /admin/kuppi/sessions/:id for admin deletes.
-    // We treat this as a soft-delete at the client level (server should implement soft behavior).
     const response = await apiClient.delete<KuppiActionResponse>(KUPPI_ENDPOINTS.ADMIN_SESSION(id));
     return response.data;
 }
 
-export async function adminDeleteSession(id: number): Promise<KuppiActionResponse> {
-    const response = await apiClient.delete<KuppiActionResponse>(KUPPI_ENDPOINTS.ADMIN_SESSION(id));
-    return response.data;
-}
-
-export async function adminUpdateNote(id: number, data: UpdateKuppiNoteRequest): Promise<KuppiNoteDetailResponse> {
-    const formData = new FormData();
-    if (data.title) formData.append('title', data.title);
-    if (data.description) formData.append('description', data.description);
-    if (data.allowDownload !== undefined) formData.append('allowDownload', data.allowDownload.toString());
-    if (data.file) formData.append('file', data.file);
-
-    const response = await apiClient.put<KuppiNoteDetailResponse>(KUPPI_ENDPOINTS.ADMIN_NOTE(id), formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-}
-
-export async function adminDeleteNote(id: number): Promise<KuppiActionResponse> {
+export async function adminSoftDeleteNote(id: number): Promise<KuppiActionResponse> {
     const response = await apiClient.delete<KuppiActionResponse>(KUPPI_ENDPOINTS.ADMIN_NOTE(id));
     return response.data;
 }
@@ -590,16 +571,6 @@ export async function getKuppiStudentsByFaculty(faculty: string, params: KuppiPa
     const url = query
         ? `${KUPPI_ENDPOINTS.KUPPI_STUDENTS_BY_FACULTY(faculty)}?${query}`
         : KUPPI_ENDPOINTS.KUPPI_STUDENTS_BY_FACULTY(faculty);
-    const response = await apiClient.get<KuppiStudentsResponse>(url);
-    return response.data;
-}
-
-/**
- * Get top-rated Kuppi students
- */
-export async function getTopRatedKuppiStudents(params: KuppiPaginationParams = {}): Promise<KuppiStudentsResponse> {
-    const query = buildQueryParams(params);
-    const url = query ? `${KUPPI_ENDPOINTS.KUPPI_STUDENTS_TOP_RATED}?${query}` : KUPPI_ENDPOINTS.KUPPI_STUDENTS_TOP_RATED;
     const response = await apiClient.get<KuppiStudentsResponse>(url);
     return response.data;
 }

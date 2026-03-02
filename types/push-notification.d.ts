@@ -17,7 +17,9 @@ export type NotificationType =
   | 'ASSIGNMENT'
   | 'GRADE'
   | 'ATTENDANCE'
-  | 'MESSAGE';
+  | 'MESSAGE'
+  | 'KUPPI_SESSION'
+  | 'KUPPI_REMINDER';
 
 // User roles matching backend
 export type UserRole =

@@ -19,41 +19,31 @@ import {
     Avatar,
     Snackbar,
     Alert,
-    Tabs,
-    Tab,
     Paper,
     Tooltip,
     Skeleton,
     MenuItem,
     Pagination,
     Divider,
-    LinearProgress,
 } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import StarIcon from '@mui/icons-material/Star';
 import SchoolIcon from '@mui/icons-material/School';
 import PersonIcon from '@mui/icons-material/Person';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import GroupsIcon from '@mui/icons-material/Groups';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import VerifiedIcon from '@mui/icons-material/Verified';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
     fetchKuppiStudents,
-    fetchTopRatedKuppiStudents,
     searchKuppiStudentsByNameAsync,
     searchKuppiStudentsBySubjectAsync,
     fetchKuppiStudentsByFaculty,
     selectKuppiStudents,
-    selectTopRatedKuppiStudents,
     selectTotalKuppiStudents,
     selectKuppiStudentsLoading,
     selectKuppiError,
@@ -101,7 +91,6 @@ export default function KuppiTutorsPage() {
     const dispatch = useAppDispatch();
 
     const kuppiStudents = useAppSelector(selectKuppiStudents);
-    const topRatedStudents = useAppSelector(selectTopRatedKuppiStudents);
     const totalStudents = useAppSelector(selectTotalKuppiStudents);
     const isLoading = useAppSelector(selectKuppiStudentsLoading);
     const error = useAppSelector(selectKuppiError);
@@ -109,7 +98,6 @@ export default function KuppiTutorsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchType, setSearchType] = useState<'name' | 'subject'>('name');
     const [selectedFaculty, setSelectedFaculty] = useState<Faculty | 'ALL'>('ALL');
-    const [activeTab, setActiveTab] = useState(0);
     const [page, setPage] = useState(0);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' as 'success' | 'error' });
 
@@ -117,20 +105,8 @@ export default function KuppiTutorsPage() {
 
     useEffect(() => {
         dispatch(fetchKuppiStudents({ page: 0, size: PAGE_SIZE, sortBy: 'kuppiRating', sortDirection: 'DESC' }));
-        dispatch(fetchTopRatedKuppiStudents({ page: 0, size: 5 }));
     }, [dispatch]);
 
-    const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-        setActiveTab(newValue);
-        setPage(0);
-        setSearchQuery('');
-        setSelectedFaculty('ALL');
-        if (newValue === 0) {
-            dispatch(fetchKuppiStudents({ page: 0, size: PAGE_SIZE, sortBy: 'kuppiRating', sortDirection: 'DESC' }));
-        } else if (newValue === 1) {
-            dispatch(fetchTopRatedKuppiStudents({ page: 0, size: PAGE_SIZE }));
-        }
-    };
 
     const handleSearch = useCallback(() => {
         setPage(0);
@@ -169,8 +145,6 @@ export default function KuppiTutorsPage() {
             }
         } else if (selectedFaculty !== 'ALL') {
             dispatch(fetchKuppiStudentsByFaculty({ faculty: selectedFaculty, params: { page: pageIndex, size: PAGE_SIZE } }));
-        } else if (activeTab === 1) {
-            dispatch(fetchTopRatedKuppiStudents({ page: pageIndex, size: PAGE_SIZE }));
         } else {
             dispatch(fetchKuppiStudents({ page: pageIndex, size: PAGE_SIZE, sortBy: 'kuppiRating', sortDirection: 'DESC' }));
         }
@@ -180,11 +154,7 @@ export default function KuppiTutorsPage() {
         setSearchQuery('');
         setSelectedFaculty('ALL');
         setPage(0);
-        if (activeTab === 0) {
-            dispatch(fetchKuppiStudents({ page: 0, size: PAGE_SIZE, sortBy: 'kuppiRating', sortDirection: 'DESC' }));
-        } else {
-            dispatch(fetchTopRatedKuppiStudents({ page: 0, size: PAGE_SIZE }));
-        }
+        dispatch(fetchKuppiStudents({ page: 0, size: PAGE_SIZE, sortBy: 'kuppiRating', sortDirection: 'DESC' }));
     };
 
     const handleClearSearch = () => {
@@ -206,10 +176,9 @@ export default function KuppiTutorsPage() {
 
     const stats = [
         { label: 'Total Tutors', value: totalStudents, icon: GroupsIcon, color: '#3B82F6' },
-        { label: 'Top Rated', value: topRatedStudents.length, icon: StarIcon, color: '#F59E0B' },
     ];
 
-    const displayStudents = activeTab === 1 ? topRatedStudents : kuppiStudents;
+    const displayStudents = kuppiStudents;
     const totalPages = Math.ceil(totalStudents / PAGE_SIZE);
 
     return (
@@ -283,10 +252,7 @@ export default function KuppiTutorsPage() {
                             />
                         </Stack>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
-                            <Tabs value={activeTab} onChange={handleTabChange} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', borderRadius: 1, px: 2 }, '& .MuiTabs-indicator': { borderRadius: 1, height: 2 } }}>
-                                <Tab label="All Tutors" icon={<GroupsIcon sx={{ fontSize: 16 }} />} iconPosition="start" />
-                                <Tab label="Top Rated" icon={<TrendingUpIcon sx={{ fontSize: 16 }} />} iconPosition="start" />
-                            </Tabs>
+                            <Typography variant="subtitle2" fontWeight={600} color="text.secondary">All Tutors</Typography>
                             <Stack direction="row" spacing={1.5} alignItems="center">
                                 <TextField
                                     select size="small" value={selectedFaculty}
@@ -337,19 +303,17 @@ export default function KuppiTutorsPage() {
                     <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 340, mx: 'auto' }}>Try adjusting your search criteria or filters.</Typography>
                 </Paper>
             ) : (
-                <Grid container spacing={3}>
-                    <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="popLayout">
+                    <Grid container spacing={3}>
                         {displayStudents.map((student, index) => {
                             const expColor = EXPERIENCE_COLORS[student.kuppiExperienceLevel] || '#6B7280';
-                            const rating = student.kuppiRating ?? 0;
                             return (
                                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={student.id}>
                                     <MotionCard
-                                        variants={itemVariants}
-                                        initial="hidden"
-                                        animate="show"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
-                                        transition={{ delay: index * 0.04 }}
+                                        transition={{ duration: 0.3, delay: index * 0.04 }}
                                         elevation={0}
                                         onClick={() => handleTutorClick(student)}
                                         sx={{
@@ -450,8 +414,8 @@ export default function KuppiTutorsPage() {
                                 </Grid>
                             );
                         })}
-                    </AnimatePresence>
-                </Grid>
+                    </Grid>
+                </AnimatePresence>
             )}
 
             {/* ── Pagination ── */}

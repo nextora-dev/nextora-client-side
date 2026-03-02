@@ -42,14 +42,18 @@ import SchoolIcon from '@mui/icons-material/School';
 import StarIcon from '@mui/icons-material/Star';
 import WarningIcon from '@mui/icons-material/Warning';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
     adminFetchApplications,
     adminFetchApplicationById,
     adminFetchApplicationStats,
+    adminFetchPlatformStats,
     adminApproveApplicationAsync,
     adminRejectApplicationAsync,
+    adminSoftDeleteSessionAsync,
+    adminSoftDeleteNoteAsync,
     fetchSessions,
     fetchNotes,
     fetchSessionById,
@@ -62,6 +66,7 @@ import {
     selectKuppiAllApplications,
     selectKuppiTotalApplications,
     selectKuppiApplicationStats,
+    selectKuppiPlatformStats,
     selectKuppiSelectedApplication,
     selectKuppiCurrentPage,
     selectKuppiPageSize,
@@ -83,7 +88,6 @@ import {
     KuppiApplicationResponse,
     ApplicationStatus, SessionStatus,
     // additional imports for Hosts UI
-    fetchTopRatedKuppiStudents,
     searchKuppiStudentsByNameAsync,
     searchKuppiStudentsBySubjectAsync,
     fetchKuppiStudentsByFaculty,
@@ -92,10 +96,21 @@ import {
     selectKuppiStudentDetailLoading,
     KuppiStudentResponse,
     Faculty,
+    PermanentDeleteApplication,
+    PermanentDeleteSession,
+    PermanentDeleteNote,
+    RevokeKuppiRole,
+    selectKuppiIsDeleting,
 } from '@/features/kuppi';
 import * as kuppiServices from '@/features/kuppi/services';
-import { ApplicationsTable, RowActionMenu, KuppiViewDialog, KuppiCommon, SessionsTable, NotesTable, SessionSearchPanel } from '@/components/kuppi';
+import { ApplicationsTable, ApplicationSearchPanel, RowActionMenu, KuppiViewDialog, KuppiCommon, SessionsTable, NotesTable, SessionSearchPanel } from '@/components/kuppi';
 import EventIcon from "@mui/icons-material/Event";
+import DescriptionIcon from '@mui/icons-material/Description';
+import DownloadIcon from '@mui/icons-material/Download';
+import PeopleIcon from '@mui/icons-material/People';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 const MotionBox = motion.create(Box);
 const MotionCard = motion.create(Card);
@@ -112,6 +127,7 @@ const STATUS_COLORS: Record<ApplicationStatus, string> = {
     APPROVED: '#10B981',
     REJECTED: '#EF4444',
     CANCELLED: '#6B7280',
+    EXPIRED: '#9CA3AF',
 };
 
 // Status icons
@@ -122,6 +138,7 @@ const getStatusIcon = (status: ApplicationStatus) => {
         case 'APPROVED': return <CheckCircleIcon fontSize="small" />;
         case 'REJECTED': return <CancelIcon fontSize="small" />;
         case 'CANCELLED': return <CancelIcon fontSize="small" />;
+        case 'EXPIRED': return <ScheduleIcon fontSize="small" />;
         default: return undefined;
     }
 };
@@ -167,8 +184,8 @@ export default function SuperAdminKuppiPage() {
     const pageSize = useAppSelector(selectKuppiPageSize);
     const isLoading = useAppSelector(selectKuppiIsLoading);
     const isApplicationLoading = useAppSelector(selectKuppiIsApplicationLoading);
-    const isSessionLoading = useAppSelector((state) => (state as any).kuppi?.isSessionLoading ?? false);
-    const isNoteLoading = useAppSelector((state) => (state as any).kuppi?.isNoteLoading ?? false);
+    const isSessionLoading = useAppSelector(selectKuppiIsSessionLoading);
+    const isNoteLoading = useAppSelector(selectKuppiIsNoteLoading);
     const isApproving = useAppSelector(selectKuppiIsCreating);
     const isRejecting = useAppSelector(selectKuppiIsUpdating);
     const error = useAppSelector(selectKuppiError);
@@ -179,6 +196,8 @@ export default function SuperAdminKuppiPage() {
     const studentsLoading = useAppSelector(selectKuppiStudentsLoading);
     const selectedKuppiStudent = useAppSelector(selectSelectedKuppiStudent);
     const selectedKuppiStudentLoading = useAppSelector(selectKuppiStudentDetailLoading);
+    const isDeleting = useAppSelector(selectKuppiIsDeleting);
+    const platformStats = useAppSelector(selectKuppiPlatformStats);
 
     // Local state
     const [searchQuery, setSearchQuery] = useState('');
@@ -193,20 +212,24 @@ export default function SuperAdminKuppiPage() {
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
+    const [permanentDeleteType, setPermanentDeleteType] = useState<'application' | 'session' | 'note'>('application');
     const [revokeRoleDialogOpen, setRevokeRoleDialogOpen] = useState(false);
     const [reviewNotes, setReviewNotes] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
     const [revokeReason, setRevokeReason] = useState('');
     const [confirmText, setConfirmText] = useState('');
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-    const [actionLoading, setActionLoading] = useState(false);
     const [viewMode, setViewMode] = useState<'application' | 'session' | 'note' | null>(null);
+    const [softDeleteDialogOpen, setSoftDeleteDialogOpen] = useState(false);
+    const [softDeleteTarget, setSoftDeleteTarget] = useState<'session' | 'note' | null>(null);
+    const [actionLoading, setActionLoading] = useState(false);
 
     // Hosts-specific UI state
     const [hostSearchQuery, setHostSearchQuery] = useState('');
     const [hostSearchType, setHostSearchType] = useState<'name' | 'subject'>('name');
     const [selectedFaculty, setSelectedFaculty] = useState<Faculty | 'ALL'>('ALL');
-    const [hostActiveTab, setHostActiveTab] = useState(0); // 0=All,1=Top Rated
+    const [hostAnchorEl, setHostAnchorEl] = useState<null | HTMLElement>(null);
+    const [hostActionTarget, setHostActionTarget] = useState<any | null>(null);
 
     const PAGE_SIZE = pageSize || 10;
 
@@ -214,6 +237,7 @@ export default function SuperAdminKuppiPage() {
     useEffect(() => {
         dispatch(adminFetchApplications({ page, size: pageSize }));
         dispatch(adminFetchApplicationStats());
+        dispatch(adminFetchPlatformStats());
         // fetch sessions and notes for super-admin view
         dispatch(fetchSessions({ page: 0, size: pageSize }));
         dispatch(fetchNotes({ page: 0, size: pageSize }));
@@ -252,7 +276,6 @@ export default function SuperAdminKuppiPage() {
             // reset host-specific controls
             setHostSearchQuery('');
             setSelectedFaculty('ALL');
-            setHostActiveTab(0);
             dispatch(fetchKuppiStudents({ page: 0, size: pageSize }));
         }
         dispatch(setKuppiCurrentPage(0));
@@ -260,10 +283,16 @@ export default function SuperAdminKuppiPage() {
 
     // Handle refresh
     const handleRefresh = useCallback(() => {
-        dispatch(adminFetchApplications({ page, size: pageSize, status: statusFilter || undefined }));
         dispatch(adminFetchApplicationStats());
-        if (mainTab === 3) {
-            // refresh hosts
+        dispatch(adminFetchPlatformStats());
+        if (mainTab === 0) {
+            dispatch(adminFetchApplications({ page, size: pageSize, status: statusFilter || undefined }));
+        } else if (mainTab === 1) {
+            dispatch(fetchSessions({ page, size: pageSize }));
+            setFilteredSessions(null);
+        } else if (mainTab === 2) {
+            dispatch(fetchNotes({ page, size: pageSize }));
+        } else if (mainTab === 3) {
             dispatch(fetchKuppiStudents({ page: 0, size: PAGE_SIZE }));
         }
     }, [dispatch, page, pageSize, statusFilter, mainTab, PAGE_SIZE]);
@@ -282,12 +311,8 @@ export default function SuperAdminKuppiPage() {
             dispatch(fetchKuppiStudentsByFaculty({ faculty: selectedFaculty as Faculty, params: { page: pageIndex, size: PAGE_SIZE } }));
             return;
         }
-        if (hostActiveTab === 1) {
-            dispatch(fetchTopRatedKuppiStudents({ page: pageIndex, size: PAGE_SIZE }));
-            return;
-        }
         dispatch(fetchKuppiStudents({ page: pageIndex, size: PAGE_SIZE }));
-    }, [dispatch, hostSearchQuery, hostSearchType, selectedFaculty, hostActiveTab, PAGE_SIZE]);
+    }, [dispatch, hostSearchQuery, hostSearchType, selectedFaculty, PAGE_SIZE]);
 
     // Open host detail (fetch by id)
     const [hostDetailOpen, setHostDetailOpen] = useState(false);
@@ -317,16 +342,70 @@ export default function SuperAdminKuppiPage() {
             setSelectedApp(null);
             setSelectedNote(null);
             setSelectedSession(null);
+            setViewMode('session');
             setViewDialogOpen(true);
             try {
                 const s = await dispatch(fetchSessionById(sessionActionTarget.id)).unwrap();
                 setSelectedSession(s);
             } catch (err) {
                 setViewDialogOpen(false);
+                setViewMode(null);
             }
         }
     };
-    const handleSessionDeleteConfirm = () => { handleSessionMenuClose(); if (sessionActionTarget) { setSelectedSession(sessionActionTarget); /* keep modal flows*/ } };
+    const handleSessionDeleteConfirm = () => {
+        handleSessionMenuClose();
+        if (sessionActionTarget) {
+            setSelectedSession(sessionActionTarget);
+            setSoftDeleteTarget('session');
+            setSoftDeleteDialogOpen(true);
+        }
+    };
+
+    const handleSoftDeleteSession = async () => {
+        if (selectedSession) {
+            setActionLoading(true);
+            try {
+                await dispatch(adminSoftDeleteSessionAsync(selectedSession.id)).unwrap();
+                setSoftDeleteDialogOpen(false);
+                setSoftDeleteTarget(null);
+                setSelectedSession(null);
+                handleRefresh();
+                setSnackbar({ open: true, message: 'Session deleted successfully', severity: 'success' });
+            } catch (err: any) {
+                setSnackbar({ open: true, message: err?.message || err || 'Failed to delete session', severity: 'error' });
+            } finally {
+                setActionLoading(false);
+            }
+        }
+    };
+
+    const handleNoteDeleteConfirm = () => {
+        handleNoteMenuClose();
+        if (noteActionTarget) {
+            setSelectedNote(noteActionTarget);
+            setSoftDeleteTarget('note');
+            setSoftDeleteDialogOpen(true);
+        }
+    };
+
+    const handleSoftDeleteNote = async () => {
+        if (selectedNote) {
+            setActionLoading(true);
+            try {
+                await dispatch(adminSoftDeleteNoteAsync(selectedNote.id)).unwrap();
+                setSoftDeleteDialogOpen(false);
+                setSoftDeleteTarget(null);
+                setSelectedNote(null);
+                handleRefresh();
+                setSnackbar({ open: true, message: 'Note deleted successfully', severity: 'success' });
+            } catch (err: any) {
+                setSnackbar({ open: true, message: err?.message || err || 'Failed to delete note', severity: 'error' });
+            } finally {
+                setActionLoading(false);
+            }
+        }
+    };
 
     // Note menu handlers
     const handleNoteMenuOpen = (event: React.MouseEvent<HTMLElement>, note: any) => { setNoteAnchorEl(event.currentTarget); setNoteActionTarget(note); };
@@ -337,16 +416,17 @@ export default function SuperAdminKuppiPage() {
             setSelectedApp(null);
             setSelectedSession(null);
             setSelectedNote(null);
+            setViewMode('note');
             setViewDialogOpen(true);
             try {
                 const n = await dispatch(fetchNoteById(noteActionTarget.id)).unwrap();
                 setSelectedNote(n);
             } catch (err) {
                 setViewDialogOpen(false);
+                setViewMode(null);
             }
         }
     };
-    const handleNoteDeleteConfirm = () => { handleNoteMenuClose(); if (noteActionTarget) { setSelectedNote(noteActionTarget); } };
 
     // Open session by id and show session view in dialog (used from note view)
     const openSessionById = async (sessionId?: number | string | null, prevNoteToRestore?: any | null) => {
@@ -388,7 +468,7 @@ export default function SuperAdminKuppiPage() {
             // run search with page 0 when host filters change
             handleHostSearch(0);
         }
-    }, [hostSearchQuery, hostSearchType, selectedFaculty, hostActiveTab, mainTab, handleHostSearch]);
+    }, [hostSearchQuery, hostSearchType, selectedFaculty, mainTab, handleHostSearch]);
 
     // Handle approve
     const handleOpenApproveDialog = () => {
@@ -433,48 +513,61 @@ export default function SuperAdminKuppiPage() {
         }
     };
 
-    // Handle permanent delete
+    // Handle permanent delete (application)
     const handleOpenPermanentDeleteDialog = () => {
         handleMenuClose();
         setConfirmText('');
+        setPermanentDeleteType('application');
+        setPermanentDeleteDialogOpen(true);
+    };
+
+    // Handle permanent delete (session)
+    const handleOpenSessionPermanentDeleteDialog = () => {
+        setSessionAnchorEl(null); // close menu only, keep sessionActionTarget
+        setConfirmText('');
+        setPermanentDeleteType('session');
+        setPermanentDeleteDialogOpen(true);
+    };
+
+    // Handle permanent delete (note)
+    const handleOpenNotePermanentDeleteDialog = () => {
+        setNoteAnchorEl(null); // close menu only, keep noteActionTarget
+        setConfirmText('');
+        setPermanentDeleteType('note');
         setPermanentDeleteDialogOpen(true);
     };
 
     const handlePermanentDelete = async () => {
-        if (selectedApp && confirmText === 'DELETE') {
-            setActionLoading(true);
-            try {
-                await kuppiServices.superAdminPermanentDeleteApplication(selectedApp.id);
-                setPermanentDeleteDialogOpen(false);
-                handleRefresh();
-                setSnackbar({ open: true, message: 'Application permanently deleted', severity: 'success' });
-            } catch (err) {
-                setSnackbar({ open: true, message: 'Failed to delete application', severity: 'error' });
-            } finally {
-                setActionLoading(false);
+        if (confirmText !== 'DELETE') return;
+        try {
+            if (permanentDeleteType === 'application' && selectedApp) {
+                await dispatch(PermanentDeleteApplication(selectedApp.id)).unwrap();
+            } else if (permanentDeleteType === 'session' && sessionActionTarget) {
+                await dispatch(PermanentDeleteSession(sessionActionTarget.id)).unwrap();
+            } else if (permanentDeleteType === 'note' && noteActionTarget) {
+                await dispatch(PermanentDeleteNote(noteActionTarget.id)).unwrap();
             }
+            setPermanentDeleteDialogOpen(false);
+        } catch (err: any) {
+            setSnackbar({ open: true, message: err || 'Failed to permanently delete', severity: 'error' });
         }
     };
 
-    // Handle revoke role
+    // Handle revoke role (from Hosts tab)
     const handleOpenRevokeRoleDialog = () => {
-        handleMenuClose();
+        setHostAnchorEl(null); // close host menu, keep hostActionTarget
         setRevokeReason('');
         setRevokeRoleDialogOpen(true);
     };
 
     const handleRevokeRole = async () => {
-        if (selectedApp && revokeReason) {
-            setActionLoading(true);
+        if (hostActionTarget && revokeReason) {
             try {
-                await kuppiServices.superAdminRevokeKuppiRole(selectedApp.studentId, revokeReason);
+                await dispatch(RevokeKuppiRole({ userId: hostActionTarget.id, reason: revokeReason })).unwrap();
                 setRevokeRoleDialogOpen(false);
-                handleRefresh();
-                setSnackbar({ open: true, message: 'Kuppi role revoked successfully', severity: 'success' });
-            } catch (err) {
-                setSnackbar({ open: true, message: 'Failed to revoke role', severity: 'error' });
-            } finally {
-                setActionLoading(false);
+                setHostActionTarget(null);
+            } catch (err: any) {
+                setSnackbar({ open: true, message: err || 'Failed to revoke role', severity: 'error' });
             }
         }
     };
@@ -492,14 +585,19 @@ export default function SuperAdminKuppiPage() {
         }
     }, [error, successMessage, dispatch, handleRefresh]);
 
-    const statsOverview = stats ? [
-        { label: 'Total', value: stats.totalApplications ?? 0, icon: AssignmentIcon, color: theme.palette.primary.main },
-        { label: 'Pending', value: stats.pendingApplications ?? 0, icon: PendingIcon, color: '#F59E0B' },
-        { label: 'Under Review', value: stats.underReviewApplications ?? 0, icon: HourglassEmptyIcon, color: '#3B82F6' },
-        { label: 'Approved', value: stats.approvedApplications ?? 0, icon: CheckCircleIcon, color: '#10B981' },
-        { label: 'Rejected', value: stats.rejectedApplications ?? 0, icon: CancelIcon, color: '#EF4444' },
-        { label: 'Kuppi Students', value: stats.totalKuppiStudents ?? 0, icon: SchoolIcon, color: '#8B5CF6' },
-    ] : [];
+    const statsOverview = [
+        { label: 'Total Sessions', value: platformStats?.totalSessions ?? 0, icon: EventIcon, color: '#3B82F6' },
+        { label: 'Total Notes', value: platformStats?.totalNotes ?? 0, icon: DescriptionIcon, color: '#10B981' },
+        { label: 'Participants', value: platformStats?.totalParticipants ?? 0, icon: PeopleIcon, color: '#6366F1' },
+        { label: 'Kuppi Students', value: platformStats?.totalKuppiStudents ?? 0, icon: SchoolIcon, color: '#8B5CF6' },
+        { label: 'Completed', value: platformStats?.completedSessions ?? 0, icon: CheckCircleIcon, color: '#059669' },
+        { label: 'Cancelled', value: platformStats?.cancelledSessions ?? 0, icon: CancelIcon, color: '#DC2626' },
+        { label: 'Total Views', value: platformStats?.totalViews ?? 0, icon: VisibilityIcon, color: '#F59E0B' },
+        { label: 'Total Downloads', value: platformStats?.totalDownloads ?? 0, icon: DownloadIcon, color: '#EF4444' },
+        { label: 'This Week', value: platformStats?.sessionsThisWeek ?? 0, icon: TrendingUpIcon, color: '#0EA5E9' },
+        { label: 'This Month', value: platformStats?.sessionsThisMonth ?? 0, icon: CalendarMonthIcon, color: '#14B8A6' },
+        { label: 'New Students', value: platformStats?.newKuppiStudentsThisMonth ?? 0, icon: PersonAddIcon, color: '#EC4899' },
+    ];
 
     return (
         <KuppiCommon
@@ -516,21 +614,35 @@ export default function SuperAdminKuppiPage() {
             {/* Applications Tab (mounted always, hidden when inactive) */}
             <Box role="tabpanel" hidden={mainTab !== 0} sx={{ display: mainTab === 0 ? 'block' : 'none' }}>
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                    {/* Application Search */}
+                    <Box sx={{ p: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                        <ApplicationSearchPanel
+                            pageSize={pageSize}
+                            statusFilter={statusFilter}
+                            onClear={() => dispatch(adminFetchApplications({ page: 0, size: pageSize, status: statusFilter || undefined }))}
+                        />
+                    </Box>
+
                     <CardContent sx={{ p: 2 }}>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
                             <Tabs
-                                value={statusFilter === '' ? 0 : statusFilter === 'PENDING' ? 1 : statusFilter === 'UNDER_REVIEW' ? 2 : 3}
+                                value={['', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'].indexOf(statusFilter)}
                                 onChange={(_, v) => {
-                                    const statuses: (ApplicationStatus | '')[] = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED'];
+                                    const statuses: (ApplicationStatus | '')[] = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'];
                                     setStatusFilter(statuses[v]);
                                     dispatch(adminFetchApplications({ page: 0, size: pageSize, status: statuses[v] || undefined }));
                                 }}
+                                variant="scrollable"
+                                scrollButtons="auto"
                                 sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}
                             >
                                 <Tab label="All" />
                                 <Tab label="Pending" />
                                 <Tab label="Under Review" />
                                 <Tab label="Approved" />
+                                <Tab label="Rejected" />
+                                <Tab label="Cancelled" />
+                                <Tab label="Expired" />
                             </Tabs>
                         </Stack>
                     </CardContent>
@@ -705,10 +817,6 @@ export default function SuperAdminKuppiPage() {
                                         <option value="BUSINESS">Business</option>
                                     </TextField>
                                 </Stack>
-                                <Tabs value={hostActiveTab} onChange={(_, v) => { setHostActiveTab(v); setHostSearchQuery(''); setSelectedFaculty('ALL'); if (v === 1) { dispatch(fetchTopRatedKuppiStudents({ page: 0, size: PAGE_SIZE })); } else { dispatch(fetchKuppiStudents({ page: 0, size: PAGE_SIZE })); } }} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}>
-                                    <Tab label="All" />
-                                    <Tab label="Top Rated" />
-                                </Tabs>
                             </Stack>
 
                             {studentsLoading ? (
@@ -732,7 +840,6 @@ export default function SuperAdminKuppiPage() {
                                                             <TableCell sx={{ fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
                                                             <TableCell sx={{ fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Faculty</TableCell>
                                                             <TableCell sx={{ fontWeight: 600 }}>Subjects</TableCell>
-                                                            <TableCell sx={{ fontWeight: 600 }}>Rating</TableCell>
                                                             <TableCell sx={{ fontWeight: 600 }}>Sessions</TableCell>
                                                             <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
                                                         </TableRow>
@@ -752,14 +859,14 @@ export default function SuperAdminKuppiPage() {
                                                                     </Stack>
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                    <Typography variant="body2">{s.kuppiRating ?? s.rating ?? '—'}</Typography>
-                                                                </TableCell>
-                                                                <TableCell>
                                                                     <Typography variant="body2">{s.totalSessionsHosted ?? s.kuppiSessionsCompleted ?? 0}</Typography>
                                                                 </TableCell>
                                                                 <TableCell align="right">
-                                                                    <IconButton size="small" onClick={() => openHostDetail(s.id)}><VisibilityIcon fontSize="small" /></IconButton>
-                                                                    <IconButton size="small" onClick={() => { /* TODO: other admin actions e.g., revoke role */ }}><MoreVertIcon fontSize="small" /></IconButton>
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                                                                        <IconButton size="small" onClick={(e) => { setHostAnchorEl(e.currentTarget); setHostActionTarget(s); }}>
+                                                                            <MoreVertIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    </Box>
                                                                 </TableCell>
                                                             </TableRow>
                                                         ))}
@@ -818,7 +925,42 @@ export default function SuperAdminKuppiPage() {
                 onApprove={handleOpenApproveDialog}
                 onReject={handleOpenRejectDialog}
                 onMarkUnderReview={handleMarkUnderReview}
-                extraActions={[{ key: 'permanent-delete', label: 'Permanently Delete', onClick: handleOpenPermanentDeleteDialog, color: 'error.main' }, { key: 'revoke-role', label: 'Revoke Kuppi Role', onClick: handleOpenRevokeRoleDialog, color: 'warning.main' }]}
+                extraActions={[{ key: 'permanent-delete', label: 'Permanently Delete', onClick: handleOpenPermanentDeleteDialog, color: 'error.main' }]}
+            />
+
+            {/* Session Action Menu */}
+            <RowActionMenu
+                anchorEl={sessionAnchorEl}
+                open={Boolean(sessionAnchorEl)}
+                mode="session"
+                targetItem={sessionActionTarget}
+                onClose={handleSessionMenuClose}
+                onView={handleSessionView}
+                onDelete={handleSessionDeleteConfirm}
+                extraActions={[{ key: 'permanent-delete', label: 'Permanently Delete', onClick: handleOpenSessionPermanentDeleteDialog, color: 'error.main' }]}
+            />
+
+            {/* Note Action Menu */}
+            <RowActionMenu
+                anchorEl={noteAnchorEl}
+                open={Boolean(noteAnchorEl)}
+                mode="note"
+                targetItem={noteActionTarget}
+                onClose={handleNoteMenuClose}
+                onView={handleNoteView}
+                onDelete={handleNoteDeleteConfirm}
+                extraActions={[{ key: 'permanent-delete', label: 'Permanently Delete', onClick: handleOpenNotePermanentDeleteDialog, color: 'error.main' }]}
+            />
+
+            {/* Host Action Menu */}
+            <RowActionMenu
+                anchorEl={hostAnchorEl}
+                open={Boolean(hostAnchorEl)}
+                mode="session"
+                targetItem={hostActionTarget}
+                onClose={() => { setHostAnchorEl(null); setHostActionTarget(null); }}
+                onView={() => { if (hostActionTarget) { setHostAnchorEl(null); openHostDetail(hostActionTarget.id); } }}
+                extraActions={[{ key: 'revoke-role', label: 'Revoke Kuppi Role', onClick: handleOpenRevokeRoleDialog, color: 'warning.main' }]}
             />
 
             <KuppiViewDialog
@@ -893,12 +1035,12 @@ export default function SuperAdminKuppiPage() {
                 <DialogTitle sx={{ color: 'error.main' }}>
                     <Stack direction="row" alignItems="center" spacing={1}>
                         <WarningIcon />
-                        <Typography variant="h6">Permanent Delete</Typography>
+                        <Typography variant="h6">Permanently Delete {permanentDeleteType.charAt(0).toUpperCase() + permanentDeleteType.slice(1)}</Typography>
                     </Stack>
                 </DialogTitle>
                 <DialogContent>
                     <Alert severity="error" sx={{ mb: 2 }}>
-                        This action is <strong>IRREVERSIBLE</strong>. The application will be permanently deleted from the database.
+                        This action is <strong>IRREVERSIBLE</strong>. The {permanentDeleteType} will be permanently deleted from the database.
                     </Alert>
                     <Typography sx={{ mb: 2 }}>Type <strong>DELETE</strong> to confirm:</Typography>
                     <TextField
@@ -914,9 +1056,9 @@ export default function SuperAdminKuppiPage() {
                         variant="contained"
                         color="error"
                         onClick={handlePermanentDelete}
-                        disabled={confirmText !== 'DELETE' || actionLoading}
+                        disabled={confirmText !== 'DELETE' || isDeleting}
                     >
-                        {actionLoading ? <CircularProgress size={20} /> : 'Delete Permanently'}
+                        {isDeleting ? <CircularProgress size={20} /> : 'Delete Permanently'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -949,9 +1091,40 @@ export default function SuperAdminKuppiPage() {
                         variant="contained"
                         color="warning"
                         onClick={handleRevokeRole}
-                        disabled={!revokeReason || actionLoading}
+                        disabled={!revokeReason || isDeleting}
                     >
-                        {actionLoading ? <CircularProgress size={20} /> : 'Revoke Role'}
+                        {isDeleting ? <CircularProgress size={20} /> : 'Revoke Role'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Soft Delete Confirmation Dialog */}
+            <Dialog open={softDeleteDialogOpen} onClose={() => { setSoftDeleteDialogOpen(false); setSoftDeleteTarget(null); }} maxWidth="sm" fullWidth>
+                <DialogTitle>Confirm Delete</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Are you sure you want to delete this {softDeleteTarget === 'session' ? 'session' : 'note'}? This action will soft-delete the item.
+                    </Typography>
+                    {softDeleteTarget === 'session' && selectedSession && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                            Session: <strong>{selectedSession.title}</strong>
+                        </Alert>
+                    )}
+                    {softDeleteTarget === 'note' && selectedNote && (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                            Note: <strong>{selectedNote.title}</strong>
+                        </Alert>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => { setSoftDeleteDialogOpen(false); setSoftDeleteTarget(null); }}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={softDeleteTarget === 'session' ? handleSoftDeleteSession : handleSoftDeleteNote}
+                        disabled={actionLoading || isDeleting}
+                    >
+                        {actionLoading || isDeleting ? <CircularProgress size={20} /> : 'Delete'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -961,31 +1134,6 @@ export default function SuperAdminKuppiPage() {
                 <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })} variant="filled" sx={{ borderRadius: 2 }}>{snackbar.message}</Alert>
             </Snackbar>
 
-            {/* Render SessionsTable and NotesTable based on mainTab */}
-            {mainTab === 1 && (
-                <SessionsTable
-                    sessions={sessions}
-                    total={totalSessions}
-                    page={page}
-                    rowsPerPage={pageSize}
-                    isLoading={isApplicationLoading}
-                    onOpenMenu={(e, session) => handleSessionMenuOpen(e, session)}
-                    onChangePage={(p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchSessions({ page: p, size: pageSize })); }}
-                    onChangeRowsPerPage={(size) => { dispatch(setKuppiPageSize(size)); dispatch(setKuppiCurrentPage(0)); }}
-                />
-            )}
-            {mainTab === 2 && (
-                <NotesTable
-                    notes={notes}
-                    total={totalNotes}
-                    page={page}
-                    rowsPerPage={pageSize}
-                    isLoading={isApplicationLoading}
-                    onOpenMenu={(e, note) => handleNoteMenuOpen(e, note)}
-                    onChangePage={(p) => { dispatch(setKuppiCurrentPage(p)); dispatch(fetchNotes({ page: p, size: pageSize })); }}
-                    onChangeRowsPerPage={(size) => { dispatch(setKuppiPageSize(size)); dispatch(setKuppiCurrentPage(0)); }}
-                />
-            )}
         </KuppiCommon>
     );
 }

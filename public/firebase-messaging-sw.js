@@ -69,7 +69,7 @@ if (messaging) {
           title: 'Dismiss',
         },
       ],
-      requireInteraction: payload.data?.type === 'ALERT' || payload.data?.type === 'VOTING_ALERT',
+      requireInteraction: payload.data?.type === 'ALERT' || payload.data?.type === 'VOTING_ALERT' || payload.data?.type === 'KUPPI_SESSION' || payload.data?.type === 'KUPPI_REMINDER',
       vibrate: [200, 100, 200],
       silent: false,
     };

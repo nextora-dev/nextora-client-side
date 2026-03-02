@@ -9,7 +9,7 @@
 
 export type SessionType = 'LIVE' | 'RECORDED';
 export type SessionStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type ApplicationStatus = 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
 export type ExperienceLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 
 // ============================================================================
@@ -222,6 +222,8 @@ export interface KuppiApplicationResponse {
     cancelledAt: string | null;
     createdAt: string;
     updatedAt: string;
+    academicResultsUrl: string | null;
+    academicResultsFileName: string | null;
     canBeApproved: boolean;
     canBeRejected: boolean;
     canBeCancelled: boolean;
@@ -256,6 +258,14 @@ export interface KuppiApplicationsResponse {
         last: boolean;
         empty: boolean;
     };
+    timestamp: string;
+}
+
+/** Response type for GET /api/v1/kuppi/applications/my — returns a flat array */
+export interface KuppiMyApplicationsResponse {
+    success: boolean;
+    message: string;
+    data: KuppiApplicationResponse[];
     timestamp: string;
 }
 

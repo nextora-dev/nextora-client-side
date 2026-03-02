@@ -90,18 +90,28 @@ export interface KuppiState {
         totalSessionViews: number;
         totalNotes: number;
         totalNoteViews: number;
+        mostViewedSessionId: number | null;
+        mostViewedSessionTitle: string | null;
+        mostViewedSessionViews: number;
+        mostDownloadedNoteId: number | null;
+        mostDownloadedNoteTitle: string | null;
+        mostDownloadedNoteDownloads: number;
     } | null;
+    isAnalyticsLoading: boolean;
 
     // Platform Stats (Admin)
     platformStats: {
         totalSessions: number;
         totalNotes: number;
+        totalParticipants: number;
         totalKuppiStudents: number;
         completedSessions: number;
+        cancelledSessions: number;
         totalViews: number;
         totalDownloads: number;
         sessionsThisWeek: number;
         sessionsThisMonth: number;
+        newKuppiStudentsThisMonth: number;
     } | null;
 
     // Pagination
@@ -165,6 +175,7 @@ const initialState: KuppiState = {
     isKuppiStudentDetailLoading: false,
 
     myAnalytics: null,
+    isAnalyticsLoading: false,
     platformStats: null,
 
     currentPage: 0,
@@ -336,16 +347,16 @@ export const adminSoftDeleteSessionAsync = createAsyncThunk(
     }
 );
 
-// New: Admin update session (uses admin endpoint)
-export const adminUpdateSessionAsync = createAsyncThunk(
-    'kuppi/adminUpdateSession',
-    async ({ id, data }: { id: number; data: UpdateKuppiSessionRequest }, { rejectWithValue }) => {
+// New: Admin soft-delete note (calls admin-specific endpoint)
+export const adminSoftDeleteNoteAsync = createAsyncThunk(
+    'kuppi/adminSoftDeleteNote',
+    async (id: number, { rejectWithValue }) => {
         try {
-            const response = await kuppiServices.adminUpdateSession(id, data);
-            return response; // response is expected to be KuppiSessionDetailResponse-like (message + data)
+            const response = await kuppiServices.adminSoftDeleteNote(id);
+            return { id, response };
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to update session (admin)');
+            return rejectWithValue(err.response?.data?.message || 'Failed to delete note (admin)');
         }
     }
 );
@@ -451,9 +462,9 @@ export const updateNoteAsync = createAsyncThunk(
 
 export const submitApplicationAsync = createAsyncThunk(
     'kuppi/submitApplication',
-    async (data: CreateKuppiApplicationRequest, { rejectWithValue }) => {
+    async ({ data, academicResults }: { data: CreateKuppiApplicationRequest; academicResults: File }, { rejectWithValue }) => {
         try {
-            const response = await kuppiServices.submitApplication(data);
+            const response = await kuppiServices.submitApplication(data, academicResults);
             return response;
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } };
@@ -469,8 +480,8 @@ export const fetchMyApplications = createAsyncThunk(
             const response = await kuppiServices.getMyApplications();
             return response;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch applications');
+            const err = error as any;
+            return rejectWithValue(err?.response?.data?.message || 'Failed to fetch applications');
         }
     }
 );
@@ -612,6 +623,19 @@ export const adminFetchPlatformStats = createAsyncThunk(
     }
 );
 
+export const adminSearchApplicationsAsync = createAsyncThunk(
+    'kuppi/adminSearchApplications',
+    async (params: KuppiSearchParams, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.adminSearchApplications(params);
+            return response;
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to search applications');
+        }
+    }
+);
+
 // ============================================================================
 // Async Thunks - Kuppi Students
 // ============================================================================
@@ -681,19 +705,6 @@ export const fetchKuppiStudentsByFaculty = createAsyncThunk(
     }
 );
 
-export const fetchTopRatedKuppiStudents = createAsyncThunk(
-    'kuppi/fetchTopRatedKuppiStudents',
-    async (params: KuppiPaginationParams, { rejectWithValue }) => {
-        try {
-            const response = await kuppiServices.getTopRatedKuppiStudents(params);
-            return response;
-        } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch top-rated Kuppi students');
-        }
-    }
-);
-
 export const rescheduleSessionAsync = createAsyncThunk(
     'kuppi/rescheduleSession',
     async ({ id, newStartTime, newEndTime }: { id: number; newStartTime: string; newEndTime: string }, { rejectWithValue }) => {
@@ -755,6 +766,60 @@ export const fetchNotesBySessionAsync = createAsyncThunk(
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } };
             return rejectWithValue(err.response?.data?.message || 'Failed to fetch notes by session');
+        }
+    }
+);
+
+// Super Admin Services
+
+export const PermanentDeleteApplication = createAsyncThunk(
+    'kuppi/superAdminPermanentDeleteApplication',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.superAdminPermanentDeleteApplication(id);
+            return { id, response };
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to permanently delete application');
+        }
+    }
+)
+
+export const PermanentDeleteSession = createAsyncThunk(
+    'kuppi/superAdminPermanentDeleteSession',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.superAdminPermanentDeleteSession(id);
+            return { id, response };
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to permanently delete session');
+        }
+    }
+)
+
+export const PermanentDeleteNote = createAsyncThunk(
+    'kuppi/superAdminPermanentDeleteNote',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.superAdminPermanentDeleteNote(id);
+            return { id, response };
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to permanently delete note');
+        }
+    }
+)
+
+export const RevokeKuppiRole = createAsyncThunk(
+    'kuppi/superAdminRevokeKuppiRole',
+    async ({ userId, reason }: { userId: number; reason: string }, { rejectWithValue }) => {
+        try {
+            const response = await kuppiServices.superAdminRevokeKuppiRole(userId, reason);
+            return { userId, response };
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } };
+            return rejectWithValue(err.response?.data?.message || 'Failed to revoke Kuppi role');
         }
     }
 );
@@ -876,8 +941,17 @@ const kuppiSlice = createSlice({
         });
 
         // Fetch My Analytics
+        builder.addCase(fetchMyAnalytics.pending, (state) => {
+            state.isAnalyticsLoading = true;
+            state.error = null;
+        });
         builder.addCase(fetchMyAnalytics.fulfilled, (state, action) => {
+            state.isAnalyticsLoading = false;
             state.myAnalytics = action.payload;
+        });
+        builder.addCase(fetchMyAnalytics.rejected, (state, action) => {
+            state.isAnalyticsLoading = false;
+            state.error = action.payload as string;
         });
 
         // Admin: Soft-delete session (remove from lists)
@@ -900,22 +974,27 @@ const kuppiSlice = createSlice({
             state.error = action.payload as string;
         });
 
-        // Admin: Update session
-        builder.addCase(adminUpdateSessionAsync.pending, (state) => {
-            state.isUpdating = true;
+        // Admin: Soft-delete note (remove from lists)
+        builder.addCase(adminSoftDeleteNoteAsync.pending, (state) => {
+            state.isDeleting = true;
         });
-        builder.addCase(adminUpdateSessionAsync.fulfilled, (state, action) => {
-            state.isUpdating = false;
-            const updated = action.payload?.data;
-            if (updated) {
-                state.sessions = state.sessions.map(s => (s.id === updated.id ? updated : s));
-                state.mySessions = state.mySessions.map(s => (s.id === updated.id ? updated : s));
-                if (state.selectedSession?.id === updated.id) state.selectedSession = updated;
-                state.successMessage = action.payload.message || 'Session updated successfully (admin)';
+        builder.addCase(adminSoftDeleteNoteAsync.fulfilled, (state, action) => {
+            state.isDeleting = false;
+            const id = action.payload?.id;
+            if (typeof id === 'number') {
+                state.notes = state.notes.filter(n => n.id !== id);
+                state.myNotes = state.myNotes.filter(n => n.id !== id);
+                if (state.selectedNote?.id === id) state.selectedNote = null;
+                state.totalNotes = Math.max(0, state.totalNotes - 1);
+                // Also remove from notesBySession
+                for (const sessionId of Object.keys(state.notesBySession)) {
+                    state.notesBySession[Number(sessionId)] = state.notesBySession[Number(sessionId)].filter(n => n.id !== id);
+                }
+                state.successMessage = action.payload.response?.message || 'Note deleted successfully (admin)';
             }
         });
-        builder.addCase(adminUpdateSessionAsync.rejected, (state, action) => {
-            state.isUpdating = false;
+        builder.addCase(adminSoftDeleteNoteAsync.rejected, (state, action) => {
+            state.isDeleting = false;
             state.error = action.payload as string;
         });
 
@@ -1101,8 +1180,41 @@ const kuppiSlice = createSlice({
         });
 
         // Fetch My Applications
+        builder.addCase(fetchMyApplications.pending, (state) => {
+            state.isApplicationLoading = true;
+            state.error = null;
+        });
         builder.addCase(fetchMyApplications.fulfilled, (state, action) => {
-            state.myApplications = action.payload.data.content;
+            state.isApplicationLoading = false;
+            // Handle all possible response shapes:
+            // 1. { success, data: [...] }  (standard API response)
+            // 2. { success, data: { content: [...] } }  (paginated)
+            // 3. [...] (raw array)
+            const payload = action.payload;
+            let applications: any[] = [];
+
+            if (Array.isArray(payload)) {
+                // Direct array
+                applications = payload;
+            } else if (payload && typeof payload === 'object') {
+                const data = (payload as any).data;
+                if (Array.isArray(data)) {
+                    // { data: [...] }
+                    applications = data;
+                } else if (data && Array.isArray(data.content)) {
+                    // { data: { content: [...] } }
+                    applications = data.content;
+                } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    // Single application object wrapped: { data: { id, status, ... } }
+                    applications = [data];
+                }
+            }
+
+            state.myApplications = applications;
+        });
+        builder.addCase(fetchMyApplications.rejected, (state, action) => {
+            state.isApplicationLoading = false;
+            state.error = action.payload as string;
         });
 
         // Fetch Active Application
@@ -1137,6 +1249,20 @@ const kuppiSlice = createSlice({
             state.totalApplications = action.payload.data.totalElements;
         });
         builder.addCase(adminFetchApplications.rejected, (state, action) => {
+            state.isApplicationLoading = false;
+            state.error = action.payload as string;
+        });
+
+        // Admin Search Applications
+        builder.addCase(adminSearchApplicationsAsync.pending, (state) => {
+            state.isApplicationLoading = true;
+        });
+        builder.addCase(adminSearchApplicationsAsync.fulfilled, (state, action) => {
+            state.isApplicationLoading = false;
+            state.allApplications = action.payload.data.content;
+            state.totalApplications = action.payload.data.totalElements;
+        });
+        builder.addCase(adminSearchApplicationsAsync.rejected, (state, action) => {
             state.isApplicationLoading = false;
             state.error = action.payload as string;
         });
@@ -1244,20 +1370,87 @@ const kuppiSlice = createSlice({
             state.error = action.payload as string;
         });
 
-        // Fetch Top Rated Kuppi Students
-        builder.addCase(fetchTopRatedKuppiStudents.pending, (state) => {
-            state.isKuppiStudentsLoading = true;
-            state.error = null;
+        // ============================================================================
+        // Super Admin Reducers
+        // ============================================================================
+
+        // Super Admin: Permanent Delete Application
+        builder.addCase(PermanentDeleteApplication.pending, (state) => {
+            state.isDeleting = true;
         });
-        builder.addCase(fetchTopRatedKuppiStudents.fulfilled, (state, action) => {
-            state.isKuppiStudentsLoading = false;
-            state.topRatedKuppiStudents = action.payload.data.content;
+        builder.addCase(PermanentDeleteApplication.fulfilled, (state, action) => {
+            state.isDeleting = false;
+            const id = action.payload.id;
+            state.allApplications = state.allApplications.filter(a => a.id !== id);
+            state.myApplications = state.myApplications.filter(a => a.id !== id);
+            if (state.selectedApplication?.id === id) state.selectedApplication = null;
+            if (state.activeApplication?.id === id) state.activeApplication = null;
+            state.totalApplications = Math.max(0, state.totalApplications - 1);
+            state.successMessage = action.payload.response?.message || 'Application permanently deleted';
         });
-        builder.addCase(fetchTopRatedKuppiStudents.rejected, (state, action) => {
-            state.isKuppiStudentsLoading = false;
+        builder.addCase(PermanentDeleteApplication.rejected, (state, action) => {
+            state.isDeleting = false;
             state.error = action.payload as string;
         });
 
+        // Super Admin: Permanent Delete Session
+        builder.addCase(PermanentDeleteSession.pending, (state) => {
+            state.isDeleting = true;
+        });
+        builder.addCase(PermanentDeleteSession.fulfilled, (state, action) => {
+            state.isDeleting = false;
+            const id = action.payload.id;
+            state.sessions = state.sessions.filter(s => s.id !== id);
+            state.mySessions = state.mySessions.filter(s => s.id !== id);
+            if (state.selectedSession?.id === id) state.selectedSession = null;
+            state.totalSessions = Math.max(0, state.totalSessions - 1);
+            state.successMessage = action.payload.response?.message || 'Session permanently deleted';
+        });
+        builder.addCase(PermanentDeleteSession.rejected, (state, action) => {
+            state.isDeleting = false;
+            state.error = action.payload as string;
+        });
+
+        // Super Admin: Permanent Delete Note
+        builder.addCase(PermanentDeleteNote.pending, (state) => {
+            state.isDeleting = true;
+        });
+        builder.addCase(PermanentDeleteNote.fulfilled, (state, action) => {
+            state.isDeleting = false;
+            const id = action.payload.id;
+            state.notes = state.notes.filter(n => n.id !== id);
+            state.myNotes = state.myNotes.filter(n => n.id !== id);
+            if (state.selectedNote?.id === id) state.selectedNote = null;
+            state.totalNotes = Math.max(0, state.totalNotes - 1);
+            // Also remove from notesBySession
+            for (const sessionId of Object.keys(state.notesBySession)) {
+                state.notesBySession[Number(sessionId)] = state.notesBySession[Number(sessionId)].filter(n => n.id !== id);
+            }
+            state.successMessage = action.payload.response?.message || 'Note permanently deleted';
+        });
+        builder.addCase(PermanentDeleteNote.rejected, (state, action) => {
+            state.isDeleting = false;
+            state.error = action.payload as string;
+        });
+
+        // Super Admin: Revoke Kuppi Role
+        builder.addCase(RevokeKuppiRole.pending, (state) => {
+            state.isDeleting = true;
+        });
+        builder.addCase(RevokeKuppiRole.fulfilled, (state, action) => {
+            state.isDeleting = false;
+            const userId = action.payload.userId;
+            state.kuppiStudents = state.kuppiStudents.filter(s => s.id !== userId);
+            state.totalKuppiStudents = Math.max(0, state.totalKuppiStudents - 1);
+            if (state.selectedKuppiStudent?.id === userId) {
+                state.selectedKuppiStudent = null;
+            }
+            state.successMessage = action.payload.response?.message || 'Kuppi role revoked successfully';
+        });
+        builder.addCase(RevokeKuppiRole.rejected, (state, action) => {
+            state.isDeleting = false;
+            state.error = action.payload as string;
+        });
 
     },
 });
@@ -1288,9 +1481,12 @@ export const selectKuppiApplicationStats = (state: { kuppi: KuppiState }) => sta
 export const selectKuppiSelectedApplication = (state: { kuppi: KuppiState }) => state.kuppi.selectedApplication;
 export const selectKuppiPlatformStats = (state: { kuppi: KuppiState }) => state.kuppi.platformStats;
 export const selectKuppiMyAnalytics = (state: { kuppi: KuppiState }) => state.kuppi.myAnalytics;
+export const selectKuppiIsAnalyticsLoading = (state: { kuppi: KuppiState }) => state.kuppi.isAnalyticsLoading;
 
 export const selectKuppiCanApply = (state: { kuppi: KuppiState }) => state.kuppi.canApply;
 export const selectKuppiIsKuppiStudent = (state: { kuppi: KuppiState }) => state.kuppi.isKuppiStudent;
+export const selectKuppiMyApplications = (state: { kuppi: KuppiState }) => state.kuppi.myApplications;
+export const selectKuppiActiveApplication = (state: { kuppi: KuppiState }) => state.kuppi.activeApplication;
 
 export const selectKuppiStudents = (state: { kuppi: KuppiState }) => state.kuppi.kuppiStudents;
 export const selectTopRatedKuppiStudents = (state: { kuppi: KuppiState }) => state.kuppi.topRatedKuppiStudents;

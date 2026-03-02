@@ -54,7 +54,12 @@ import EventIcon from '@mui/icons-material/Event';
 import DescriptionIcon from '@mui/icons-material/Description';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
 import DownloadIcon from '@mui/icons-material/Download';
-import { SessionSearchPanel, SessionsTable, NotesTable, RowActionMenu, KuppiViewDialog, KuppiCommon, ApplicationsTable } from '@/components/kuppi';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import PeopleIcon from '@mui/icons-material/People';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { SessionSearchPanel, SessionsTable, NotesTable, RowActionMenu, KuppiViewDialog, KuppiCommon, ApplicationsTable, ApplicationSearchPanel } from '@/components/kuppi';
 
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -90,8 +95,8 @@ import {
     selectKuppiIsCreating,
     selectKuppiIsUpdating,
     selectKuppiIsDeleting,
-    deleteSessionAsync,
-    deleteNoteAsync,
+    adminSoftDeleteSessionAsync,
+    adminSoftDeleteNoteAsync,
     KuppiApplicationResponse,
     KuppiSessionResponse,
     KuppiNoteResponse,
@@ -114,6 +119,7 @@ const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
     APPROVED: '#10B981',
     REJECTED: '#EF4444',
     CANCELLED: '#6B7280',
+    EXPIRED: '#9CA3AF',
 };
 
 const SESSION_STATUS_COLORS: Record<SessionStatus, string> = {
@@ -130,6 +136,7 @@ const getApplicationStatusIcon = (status: ApplicationStatus) => {
         case 'APPROVED': return <CheckCircleIcon fontSize="small" />;
         case 'REJECTED': return <CancelIcon fontSize="small" />;
         case 'CANCELLED': return <CancelIcon fontSize="small" />;
+        case 'EXPIRED': return <ScheduleIcon fontSize="small" />;
         default: return undefined;
     }
 };
@@ -386,7 +393,7 @@ export default function AcademicKuppiDashboard() {
         if (selectedSession) {
             setActionLoading(true);
             try {
-                await dispatch(deleteSessionAsync(selectedSession.id)).unwrap();
+                await dispatch(adminSoftDeleteSessionAsync(selectedSession.id)).unwrap();
                 setDeleteDialogOpen(false);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Session deleted', severity: 'success' });
@@ -402,7 +409,7 @@ export default function AcademicKuppiDashboard() {
         if (selectedNote) {
             setActionLoading(true);
             try {
-                await dispatch(deleteNoteAsync(selectedNote.id)).unwrap();
+                await dispatch(adminSoftDeleteNoteAsync(selectedNote.id)).unwrap();
                 setDeleteDialogOpen(false);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Note deleted', severity: 'success' });
@@ -429,10 +436,15 @@ export default function AcademicKuppiDashboard() {
     const overviewStatsCommon = [
         { label: 'Total Sessions', value: platformStats?.totalSessions ?? 0, icon: EventIcon, color: '#3B82F6' },
         { label: 'Total Notes', value: platformStats?.totalNotes ?? 0, icon: DescriptionIcon, color: '#10B981' },
-        { label: 'Kuppi Students', value: platformStats?.totalKuppiStudents ?? applicationStats?.totalKuppiStudents ?? 0, icon: SchoolIcon, color: '#8B5CF6' },
+        { label: 'Participants', value: platformStats?.totalParticipants ?? 0, icon: PeopleIcon, color: '#6366F1' },
+        { label: 'Kuppi Students', value: platformStats?.totalKuppiStudents ?? 0, icon: SchoolIcon, color: '#8B5CF6' },
+        { label: 'Completed', value: platformStats?.completedSessions ?? 0, icon: CheckCircleIcon, color: '#059669' },
+        { label: 'Cancelled', value: platformStats?.cancelledSessions ?? 0, icon: CancelIcon, color: '#DC2626' },
         { label: 'Total Views', value: platformStats?.totalViews ?? 0, icon: VisibilityIcon, color: '#F59E0B' },
         { label: 'Total Downloads', value: platformStats?.totalDownloads ?? 0, icon: DownloadIcon, color: '#EF4444' },
-        { label: 'Pending Apps', value: applicationStats?.pendingApplications ?? 0, icon: PendingIcon, color: '#EC4899' },
+        { label: 'This Week', value: platformStats?.sessionsThisWeek ?? 0, icon: TrendingUpIcon, color: '#0EA5E9' },
+        { label: 'This Month', value: platformStats?.sessionsThisMonth ?? 0, icon: CalendarMonthIcon, color: '#14B8A6' },
+        { label: 'New Students', value: platformStats?.newKuppiStudentsThisMonth ?? 0, icon: PersonAddIcon, color: '#EC4899' },
     ];
 
     return (
@@ -449,21 +461,35 @@ export default function AcademicKuppiDashboard() {
             {/* Applications Tab (mounted always, hidden when inactive) */}
             <Box role="tabpanel" hidden={mainTab !== 0} sx={{ display: mainTab === 0 ? 'block' : 'none' }}>
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                    {/* Application Search */}
+                    <Box sx={{ p: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                        <ApplicationSearchPanel
+                            pageSize={pageSize}
+                            statusFilter={applicationStatusFilter}
+                            onClear={() => dispatch(adminFetchApplications({ page: 0, size: pageSize, status: applicationStatusFilter || undefined }))}
+                        />
+                    </Box>
+
                     <CardContent sx={{ p: 2 }}>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mb: 2 }}>
                             <Tabs
-                                value={applicationStatusFilter === '' ? 0 : applicationStatusFilter === 'PENDING' ? 1 : applicationStatusFilter === 'UNDER_REVIEW' ? 2 : 3}
+                                value={['', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'].indexOf(applicationStatusFilter)}
                                 onChange={(_, v) => {
-                                    const statuses: (ApplicationStatus | '')[] = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED'];
+                                    const statuses: (ApplicationStatus | '')[] = ['', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED', 'EXPIRED'];
                                     setApplicationStatusFilter(statuses[v]);
                                     dispatch(adminFetchApplications({ page: 0, size: pageSize, status: statuses[v] || undefined }));
                                 }}
+                                variant="scrollable"
+                                scrollButtons="auto"
                                 sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}
                             >
                                 <Tab label="All" />
                                 <Tab label="Pending" />
                                 <Tab label="Under Review" />
                                 <Tab label="Approved" />
+                                <Tab label="Rejected" />
+                                <Tab label="Cancelled" />
+                                <Tab label="Expired" />
                             </Tabs>
                         </Stack>
                     </CardContent>

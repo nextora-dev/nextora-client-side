@@ -64,6 +64,7 @@ export function usePushNotifications(
   // Refs
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const isInitialized = useRef(false);
+  const registerTokenRef = useRef<(() => Promise<boolean>) | null>(null);
 
   /**
    * Initialize push notifications
@@ -95,12 +96,41 @@ export function usePushNotifications(
 
       if (storedToken) {
         setToken(storedToken);
-        setIsRegistered(wasRegistered);
+      }
+
+      // Validate stored registration with backend
+      // If the backend no longer has our token, we need to re-register
+      if (wasRegistered && currentPermission === 'granted') {
+        try {
+          const statusResponse = await pushNotificationApi.getStatus();
+          if (statusResponse?.success && statusResponse.data?.enabled) {
+            setIsRegistered(true);
+            console.log('[Push Hook] Token validated with backend - still registered');
+          } else {
+            // Backend doesn't have our token anymore, need to re-register
+            console.log('[Push Hook] Backend reports not registered - clearing stale state');
+            setIsRegistered(false);
+            localStorage.removeItem(PUSH_REGISTERED_KEY);
+          }
+        } catch {
+          // Can't validate - assume stale and need re-registration
+          console.log('[Push Hook] Could not validate token with backend - marking for re-registration');
+          setIsRegistered(false);
+          localStorage.removeItem(PUSH_REGISTERED_KEY);
+        }
+      } else if (wasRegistered) {
+        // Permission lost but we thought we were registered
+        setIsRegistered(false);
+        localStorage.removeItem(PUSH_REGISTERED_KEY);
+        localStorage.removeItem(FCM_TOKEN_KEY);
       }
 
       // Auto-register if enabled and permission granted
-      if (autoRegister && currentPermission === 'granted' && !wasRegistered) {
-        // Will trigger registration after component is mounted
+      if (autoRegister && currentPermission === 'granted') {
+        // Defer to after component is mounted so state is settled
+        setTimeout(() => {
+          registerTokenRef.current?.();
+        }, 500);
       }
     };
 
@@ -147,7 +177,7 @@ export function usePushNotifications(
             badge: '/icons/icon-72x72.png',
             tag: `nextora-fg-${Date.now()}`,
             data: notification,
-            requireInteraction: notificationType === 'ALERT' || notificationType === 'VOTING_ALERT',
+            requireInteraction: notificationType === 'ALERT' || notificationType === 'VOTING_ALERT' || notificationType === 'KUPPI_SESSION' || notificationType === 'KUPPI_REMINDER',
           });
 
           // Handle notification click
@@ -242,14 +272,6 @@ export function usePushNotifications(
 
       console.log('[Push Hook] FCM token obtained:', fcmToken.substring(0, 20) + '...');
 
-      // Check if token changed
-      const storedToken = localStorage.getItem(FCM_TOKEN_KEY);
-
-      if (fcmToken === storedToken && isRegistered) {
-        console.log('[Push Hook] Token unchanged and already registered');
-        setIsLoading(false);
-        return true;
-      }
 
       // Get device info
       const { deviceInfo, deviceType } = getDeviceInfo();
@@ -299,6 +321,11 @@ export function usePushNotifications(
       setIsLoading(false);
     }
   }, [isSupported, permission, isRegistered, requestPermission]);
+
+  // Keep ref in sync so deferred/auto-register always uses latest callback
+  useEffect(() => {
+    registerTokenRef.current = registerToken;
+  }, [registerToken]);
 
   /**
    * Unregister current token (logout)

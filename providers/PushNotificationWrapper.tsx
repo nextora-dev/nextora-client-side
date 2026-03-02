@@ -7,7 +7,7 @@
  * Automatically registers token on login and unregisters on logout.
  */
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PushNotificationProvider, usePushNotificationContext } from '@/contexts/PushNotificationContext';
 import { NotificationToast, EnableNotificationsBanner } from '@/components/notifications';
@@ -44,6 +44,8 @@ function PushNotificationHandler({
 
   const [currentNotification, setCurrentNotification] = useState<DisplayedNotification | null>(null);
   const [toastOpen, setToastOpen] = useState(false);
+  const isRegistering = useRef(false);
+  const hasAutoRegistered = useRef(false);
 
   // Auto-register when authenticated and permission granted
   useEffect(() => {
@@ -52,9 +54,26 @@ function PushNotificationHandler({
       isAuthenticated &&
       isSupported &&
       permission === 'granted' &&
-      !isRegistered
+      !isRegistering.current &&
+      !hasAutoRegistered.current
     ) {
-      registerToken();
+      console.log('[PushNotificationHandler] Auto-registering FCM token...');
+      isRegistering.current = true;
+      registerToken()
+        .then((success) => {
+          if (success) {
+            hasAutoRegistered.current = true;
+            console.log('[PushNotificationHandler] Auto-registration successful');
+          } else {
+            console.warn('[PushNotificationHandler] Auto-registration returned false');
+          }
+        })
+        .catch((err) => {
+          console.error('[PushNotificationHandler] Auto-registration error:', err);
+        })
+        .finally(() => {
+          isRegistering.current = false;
+        });
     }
   }, [autoRegisterOnAuth, isAuthenticated, isSupported, permission, isRegistered, registerToken]);
 

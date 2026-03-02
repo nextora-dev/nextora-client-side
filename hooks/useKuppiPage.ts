@@ -205,7 +205,7 @@ export default function useKuppiPage() {
         if (selectedNote) {
             setActionLoading(true);
             try {
-                await dispatch(kuppi.deleteNoteAsync(selectedNote.id)).unwrap();
+                await dispatch(kuppi.adminSoftDeleteNoteAsync(selectedNote.id)).unwrap();
                 setDeleteDialogOpen(false);
                 handleRefresh();
                 setSnackbar({ open: true, message: 'Note deleted', severity: 'success' });
