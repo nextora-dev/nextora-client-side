@@ -64,6 +64,22 @@ export const PERMISSIONS = {
     ADMIN_ROLES_MANAGE: 'admin:roles:manage',
     ADMIN_SETTINGS: 'admin:settings',
 
+    // Club permissions
+    CLUB_READ: 'club:read',
+    CLUB_CREATE: 'club:create',
+    CLUB_UPDATE: 'club:update',
+    CLUB_DELETE: 'club:delete',
+    CLUB_VIEW_STATS: 'club:view_stats',
+    CLUB_VIEW_ACTIVITY_LOG: 'club:view_activity_log',
+    CLUB_MANAGE_MEMBERS: 'club:manage_members',
+    CLUB_MEMBERSHIP_VIEW: 'club_membership:view',
+    CLUB_MEMBERSHIP_MANAGE: 'club_membership:manage',
+    CLUB_ANNOUNCEMENT_CREATE: 'club_announcement:create',
+    CLUB_ANNOUNCEMENT_READ: 'club_announcement:read',
+    CLUB_ANNOUNCEMENT_UPDATE: 'club_announcement:update',
+    CLUB_ANNOUNCEMENT_DELETE: 'club_announcement:delete',
+    CLUB_ELECTION_READ: 'club_election:read',
+
     // Super Admin permissions
     SUPER_ADMIN_SYSTEM: 'superadmin:system',
     SUPER_ADMIN_AUDIT: 'superadmin:audit',

@@ -65,17 +65,19 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 }
 
 const STATUS_COLORS: Record<string, string> = {
     ACTIVE: '#22C55E',
-    DEACTIVATED: '#F59E0B',
+    DEACTIVATE: '#F59E0B',
     SUSPENDED: '#EF4444',
     DELETED: '#6B7280',
+    PENDING_VERIFICATION: '#3B82F6',
     PASSWORD_CHANGE_REQUIRED: '#8B5CF6',
 };
 
 const STATUS_LABELS: Record<string, string> = {
     ACTIVE: 'Active',
-    DEACTIVATED: 'Deactivated',
+    DEACTIVATE: 'Deactivated',
     SUSPENDED: 'Suspended',
     DELETED: 'Deleted',
+    PENDING_VERIFICATION: 'Pending',
     PASSWORD_CHANGE_REQUIRED: 'Password Change',
 };
 
@@ -280,9 +282,10 @@ export default function AdminManagementPage() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'ACTIVE': return <CheckCircleIcon fontSize="small" />;
-            case 'DEACTIVATED': return <BlockIcon fontSize="small" />;
+            case 'DEACTIVATE': return <BlockIcon fontSize="small" />;
             case 'SUSPENDED': return <LockIcon fontSize="small" />;
             case 'DELETED': return <DeleteIcon fontSize="small" />;
+            case 'PENDING_VERIFICATION': return <VpnKeyIcon fontSize="small" />;
             case 'PASSWORD_CHANGE_REQUIRED': return <VpnKeyIcon fontSize="small" />;
             default: return null;
         }

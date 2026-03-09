@@ -6,3 +6,4 @@ export * from './super-admin';
 export * from './dashboard';
 export * from './push-notifications';
 export * from './kuppi';
+export * from './club';
