@@ -59,16 +59,36 @@ const NOTIFICATIONS_API = '/notifications';
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === 'object' && error !== null) {
-    const axiosError = error as {
-      response?: { data?: { message?: string }; status?: number; statusText?: string };
+    const apiError = error as {
+      error?: { message?: string; code?: string };
       message?: string;
+      response?: { data?: { message?: string }; status?: number; statusText?: string };
     };
-    if (axiosError.response?.data?.message) return axiosError.response.data.message;
-    if (axiosError.response?.statusText)
-      return `${axiosError.response.status}: ${axiosError.response.statusText}`;
-    if (axiosError.message) return axiosError.message;
+    if (apiError.error?.message) return apiError.error.message;
+    if (apiError.message) return apiError.message;
+    if (apiError.response?.data?.message) return apiError.response.data.message;
+    if (apiError.response?.statusText)
+      return `${apiError.response.status}: ${apiError.response.statusText}`;
   }
   return 'Unknown error occurred';
+}
+
+/**
+ * Check if an error is a network/connectivity issue (backend unreachable).
+ * These are expected during development or when the server is down,
+ * and should be logged at a lower severity.
+ */
+function isNetworkError(error: unknown): boolean {
+  const msg = getErrorMessage(error).toLowerCase();
+  return (
+    msg.includes('network error') ||
+    msg.includes('econnrefused') ||
+    msg.includes('econnreset') ||
+    msg.includes('enotfound') ||
+    msg.includes('timeout') ||
+    msg.includes('aborted') ||
+    msg.includes('failed to fetch')
+  );
 }
 
 // ============================================================================
@@ -89,7 +109,9 @@ export async function getNotificationHistory(
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    console.error('[NotificationHistory] Failed to fetch history:', msg);
+    if (!isNetworkError(error)) {
+      console.error('[NotificationHistory] Failed to fetch history:', msg);
+    }
     throw new Error(`Failed to fetch notification history: ${msg}`);
   }
 }
@@ -107,7 +129,9 @@ export async function getUnreadNotifications(): Promise<
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    console.error('[NotificationHistory] Failed to fetch unread:', msg);
+    if (!isNetworkError(error)) {
+      console.error('[NotificationHistory] Failed to fetch unread:', msg);
+    }
     throw new Error(`Failed to fetch unread notifications: ${msg}`);
   }
 }
@@ -123,7 +147,9 @@ export async function getUnreadCount(): Promise<ApiResponse<{ unreadCount: numbe
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    console.error('[NotificationHistory] Failed to fetch unread count:', msg);
+    if (!isNetworkError(error)) {
+      console.error('[NotificationHistory] Failed to fetch unread count:', msg);
+    }
     throw new Error(`Failed to fetch unread count: ${msg}`);
   }
 }
@@ -141,7 +167,9 @@ export async function markNotificationAsRead(
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    console.error('[NotificationHistory] Failed to mark as read:', msg);
+    if (!isNetworkError(error)) {
+      console.error('[NotificationHistory] Failed to mark as read:', msg);
+    }
     throw new Error(`Failed to mark notification as read: ${msg}`);
   }
 }
@@ -159,7 +187,9 @@ export async function markAllNotificationsAsRead(): Promise<
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    console.error('[NotificationHistory] Failed to mark all as read:', msg);
+    if (!isNetworkError(error)) {
+      console.error('[NotificationHistory] Failed to mark all as read:', msg);
+    }
     throw new Error(`Failed to mark all notifications as read: ${msg}`);
   }
 }

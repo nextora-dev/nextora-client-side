@@ -25,6 +25,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import SecurityIcon from '@mui/icons-material/Security';
 import HistoryIcon from '@mui/icons-material/History';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import GroupsIcon from '@mui/icons-material/Groups';
 import type { RoleType } from '@/constants/roles';
 import { ROLES } from '@/constants/roles';
 
@@ -45,6 +46,7 @@ export const STUDENT_NAVIGATION: NavigationItem[] = [
     { id: 'boarding', label: 'Boarding Houses', icon: ApartmentIcon, path: '/student/boarding', badge: 0 },
     { id: 'internships', label: 'Internships', icon: WorkIcon, path: '/student/internships', badge: 8 },
     { id: 'kuppi', label: 'Kuppi Sessions', icon: AutoStoriesIcon, path: '/student/kuppi', badge: 15 },
+    { id: 'clubs', label: 'Clubs', icon: GroupsIcon, path: '/student/clubs', badge: 0 },
     { id: 'calendar', label: 'Academic Calendar', icon: CalendarMonthIcon, path: '/student/calendar', badge: 0 },
     { id: 'map', label: 'Campus Map', icon: MapIcon, path: '/student/maps', badge: 0 },
     { id: 'lecturers', label: 'Meet Lecturers', icon: PersonIcon, path: '/student/meetings', badge: 0 },
@@ -59,6 +61,7 @@ export const ACADEMIC_STAFF_NAVIGATION: NavigationItem[] = [
     { id: 'attendance', label: 'Attendance', icon: EventIcon, path: '/academic/attendance', badge: 0 },
     { id: 'grades', label: 'Grades & Results', icon: AssessmentIcon, path: '/academic/grades', badge: 12 },
     { id: 'kuppi', label: 'Kuppi Sessions', icon: AutoStoriesIcon, path: '/academic/kuppi', badge: 3 },
+    { id: 'clubs', label: 'Clubs', icon: GroupsIcon, path: '/academic/clubs', badge: 0 },
     { id: 'meetings', label: 'Student Meetings', icon: PersonIcon, path: '/academic/meetings', badge: 5 },
     { id: 'calendar', label: 'Academic Calendar', icon: CalendarMonthIcon, path: '/academic/calendar', badge: 0 },
     { id: 'resources', label: 'Resources', icon: MessageIcon, path: '/academic/resources', badge: 0 },
@@ -74,6 +77,7 @@ export const NON_ACADEMIC_STAFF_NAVIGATION: NavigationItem[] = [
     { id: 'requests', label: 'Service Requests', icon: MessageIcon, path: '/non-academic/requests', badge: 12 },
     { id: 'facilities', label: 'Facilities', icon: ApartmentIcon, path: '/non-academic/facilities', badge: 0 },
     { id: 'events', label: 'Events Support', icon: EventIcon, path: '/non-academic/events', badge: 3 },
+    { id: 'clubs', label: 'Club Management', icon: GroupsIcon, path: '/non-academic/clubs', badge: 0 },
     { id: 'calendar', label: 'Work Schedule', icon: CalendarMonthIcon, path: '/non-academic/calendar', badge: 0 },
     { id: 'map', label: 'Campus Map', icon: MapIcon, path: '/non-academic/maps', badge: 0 },
 ];
@@ -84,6 +88,7 @@ export const ADMIN_NAVIGATION: NavigationItem[] = [
     { id: 'users', label: 'User Management', icon: PeopleIcon, path: '/admin/users', badge: 0 },
     { id: 'events', label: 'Event Management', icon: EventIcon, path: '/admin/events', badge: 3 },
     { id: 'courses', label: 'Course Management', icon: SchoolIcon, path: '/admin/courses', badge: 0 },
+    { id: 'clubs', label: 'Club Management', icon: GroupsIcon, path: '/admin/clubs', badge: 0 },
     { id: 'reports', label: 'Reports', icon: AssessmentIcon, path: '/admin/reports', badge: 5 },
     { id: 'approvals', label: 'Approvals', icon: VerifiedUserIcon, path: '/admin/approvals', badge: 8 },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, path: '/admin/settings', badge: 0 },
@@ -94,6 +99,7 @@ export const SUPER_ADMIN_NAVIGATION: NavigationItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon, path: '/super-admin', badge: 0 },
     { id: 'admins', label: 'Admin Management', icon: AdminPanelSettingsIcon, path: '/super-admin/admins', badge: 0 },
     { id: 'users', label: 'All Users', icon: PeopleIcon, path: '/super-admin/users', badge: 0 },
+    { id: 'clubs', label: 'Club Management', icon: GroupsIcon, path: '/super-admin/clubs', badge: 0 },
     { id: 'system', label: 'System Health', icon: StorageIcon, path: '/super-admin/system', badge: 0 },
     { id: 'security', label: 'Security', icon: SecurityIcon, path: '/super-admin/security', badge: 2 },
     { id: 'audit', label: 'Audit Logs', icon: HistoryIcon, path: '/super-admin/audit', badge: 0 },

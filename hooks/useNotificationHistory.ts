@@ -85,8 +85,13 @@ export function useNotificationHistory(
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to fetch notifications';
-        if (mountedRef.current) setError(msg);
-        console.error('[NotificationHistory Hook]', msg);
+        // Only set user-visible error for non-network issues
+        const isNetwork = msg.toLowerCase().includes('network') ||
+          msg.toLowerCase().includes('econnrefused') ||
+          msg.toLowerCase().includes('timeout');
+        if (mountedRef.current && !isNetwork) {
+          setError(msg);
+        }
       } finally {
         if (mountedRef.current) setIsLoading(false);
       }
@@ -103,8 +108,9 @@ export function useNotificationHistory(
       if (response.success && response.data && mountedRef.current) {
         setUnreadCount(response.data.unreadCount);
       }
-    } catch (err) {
-      console.error('[NotificationHistory Hook] Failed to refresh unread count:', err);
+    } catch {
+      // Silently ignore — this runs on a poll interval and errors
+      // (e.g. network offline, 401 during token refresh) are expected.
     }
   }, []);
 

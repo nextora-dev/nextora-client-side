@@ -20,6 +20,9 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import PendingIcon from '@mui/icons-material/Pending';
 import SchoolIcon from '@mui/icons-material/School';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import GroupsIcon from '@mui/icons-material/Groups';
+import Diversity3Icon from '@mui/icons-material/Diversity3';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -29,6 +32,12 @@ import {
     selectKuppiPlatformStats,
     selectKuppiIsLoading,
 } from '@/features/kuppi';
+import {
+    fetchClubs,
+    selectClubs,
+    selectTotalClubs,
+    selectClubIsClubLoading,
+} from '@/features/club/clubSlice';
 
 const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -70,7 +79,14 @@ export default function SuperAdminDashboardPage() {
     useEffect(() => {
         dispatch(adminFetchApplicationStats());
         dispatch(adminFetchPlatformStats());
+        dispatch(fetchClubs({ page: 0, size: 100 }));
     }, [dispatch]);
+
+    // Club stats from Redux
+    const clubs = useAppSelector(selectClubs);
+    const totalClubs = useAppSelector(selectTotalClubs);
+    const clubLoading = useAppSelector(selectClubIsClubLoading);
+    const openRegistrationClubs = clubs.filter(c => c.registrationOpen).length;
 
     // Super Admin Kuppi actions - includes permanent delete and revoke
     const kuppiActions = [
@@ -121,6 +137,42 @@ export default function SuperAdminDashboardPage() {
             color: '#EC4899',
             action: () => router.push('/super-admin/kuppi'),
             description: 'Revoke Kuppi status',
+        },
+    ];
+
+    // Club management actions
+    const clubActions = [
+        {
+            icon: Diversity3Icon,
+            title: 'Total Clubs',
+            count: totalClubs,
+            color: '#3B82F6',
+            action: () => router.push('/super-admin/clubs'),
+            description: 'All clubs',
+        },
+        {
+            icon: GroupsIcon,
+            title: 'Open Registration',
+            count: openRegistrationClubs,
+            color: '#10B981',
+            action: () => router.push('/super-admin/clubs'),
+            description: 'Accepting members',
+        },
+        {
+            icon: DeleteForeverIcon,
+            title: 'Delete Club',
+            count: null,
+            color: '#EF4444',
+            action: () => router.push('/super-admin/clubs'),
+            description: 'Permanently delete',
+        },
+        {
+            icon: CampaignIcon,
+            title: 'Delete Announcement',
+            count: null,
+            color: '#F59E0B',
+            action: () => router.push('/super-admin/clubs'),
+            description: 'Permanently delete',
         },
     ];
 
@@ -263,6 +315,83 @@ export default function SuperAdminDashboardPage() {
                                                 </Box>
                                                 {action.count !== null && (
                                                     kuppiLoading ? (
+                                                        <CircularProgress size={18} />
+                                                    ) : (
+                                                        <Typography variant="h6" fontWeight={700} sx={{ color: action.color }}>
+                                                            {action.count}
+                                                        </Typography>
+                                                    )
+                                                )}
+                                            </Stack>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight={600} sx={{ display: 'block' }}>{action.title}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{action.description}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </CardContent>
+                                </MotionCard>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </MotionBox>
+
+            {/* Club Management Section - Super Admin */}
+            <MotionBox variants={itemVariants} sx={{ mt: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <Diversity3Icon color="primary" />
+                        <Typography variant="h6" fontWeight={600}>Club Management</Typography>
+                        <Chip label="Super Admin" size="small" color="error" />
+                    </Stack>
+                    <Button
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => router.push('/super-admin/clubs')}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        Full Control
+                    </Button>
+                </Stack>
+
+                <Grid container spacing={2}>
+                    {clubActions.map((action, index) => {
+                        const Icon = action.icon;
+                        return (
+                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                                <MotionCard
+                                    variants={itemVariants}
+                                    whileHover={{ y: -4 }}
+                                    onClick={action.action}
+                                    sx={{
+                                        borderRadius: 2,
+                                        cursor: 'pointer',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            borderColor: action.color,
+                                            boxShadow: `0 8px 24px -8px ${action.color}40`,
+                                        },
+                                    }}
+                                >
+                                    <CardContent sx={{ p: 2 }}>
+                                        <Stack spacing={1.5}>
+                                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                                <Box
+                                                    sx={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 2,
+                                                        bgcolor: alpha(action.color, 0.1),
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                    }}
+                                                >
+                                                    <Icon sx={{ color: action.color, fontSize: 22 }} />
+                                                </Box>
+                                                {action.count !== null && (
+                                                    clubLoading ? (
                                                         <CircularProgress size={18} />
                                                     ) : (
                                                         <Typography variant="h6" fontWeight={700} sx={{ color: action.color }}>

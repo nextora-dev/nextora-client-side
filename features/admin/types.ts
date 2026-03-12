@@ -291,6 +291,7 @@ export interface UserStats {
     deactivatedUsers: number;
     suspendedUsers: number;
     deletedUsers: number;
+    pendingVerificationUsers: number;
     passwordChangeRequiredUsers: number;
     totalStudents: number;
     totalAdmins: number;

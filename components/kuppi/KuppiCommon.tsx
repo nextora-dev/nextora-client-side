@@ -45,9 +45,11 @@ export default function KuppiCommon({ title = 'Kuppi Management', description = 
                         <Typography variant="body2" color="text.secondary">{description}</Typography>
                     </Box>
                     <Tooltip title="Refresh">
-                        <IconButton onClick={onRefresh} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) } }} disabled={!!isLoading}>
-                            <RefreshIcon />
-                        </IconButton>
+                        <span>
+                            <IconButton onClick={onRefresh} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) } }} disabled={!!isLoading}>
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
                     </Tooltip>
                 </Stack>
             </MotionBox>

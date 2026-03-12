@@ -300,22 +300,41 @@ export function usePushNotifications(
         return false;
       }
     } catch (err: unknown) {
-      console.error('[Push Hook] Error during registration:', err);
       let errorMessage = 'Failed to register token';
 
       if (err instanceof Error) {
         errorMessage = err.message;
       } else if (typeof err === 'object' && err !== null) {
+        const errObj = err as Record<string, unknown>;
+        // Handle ApiError shape: { success, error: { code, message }, timestamp }
+        if (errObj.error && typeof errObj.error === 'object') {
+          const nested = errObj.error as Record<string, unknown>;
+          if (typeof nested.message === 'string') {
+            errorMessage = nested.message;
+          }
+        }
         // Handle Axios error structure
-        const axiosErr = err as { response?: { data?: { message?: string }, status?: number } };
-        if (axiosErr.response?.data?.message) {
-          errorMessage = axiosErr.response.data.message;
-        } else if (axiosErr.response?.status) {
-          errorMessage = `Server error: ${axiosErr.response.status}`;
+        else {
+          const axiosErr = err as { response?: { data?: { message?: string; error?: { message?: string } }, status?: number } };
+          if (axiosErr.response?.data?.error?.message) {
+            errorMessage = axiosErr.response.data.error.message;
+          } else if (axiosErr.response?.data?.message) {
+            errorMessage = axiosErr.response.data.message;
+          } else if (axiosErr.response?.status) {
+            errorMessage = `Server error: ${axiosErr.response.status}`;
+          }
         }
       }
 
-      setError(errorMessage);
+      // Network errors are common (backend not running) — use warn, not error
+      const isNetworkError = errorMessage.toLowerCase().includes('network');
+      if (isNetworkError) {
+        console.warn('[Push Hook] Token registration failed (server unreachable):', errorMessage);
+        setError('Push notification server is currently unavailable. Notifications will be enabled when the server is back online.');
+      } else {
+        console.error('[Push Hook] Error during registration:', errorMessage);
+        setError(errorMessage);
+      }
       return false;
     } finally {
       setIsLoading(false);

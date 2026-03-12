@@ -101,6 +101,7 @@ export interface SuperAdminUserStats {
     deactivatedUsers: number;
     suspendedUsers: number;
     deletedUsers: number;
+    pendingVerificationUsers: number;
     passwordChangeRequiredUsers: number;
     totalStudents: number;
     totalAdmins: number;
@@ -132,7 +133,7 @@ export interface AdminUser {
     phoneNumber?: string | null; // Backend might use this field name
     profilePictureUrl: string | null;
     role: 'ROLE_ADMIN' | 'ROLE_SUPER_ADMIN';
-    status: 'ACTIVE' | 'DEACTIVATED' | 'SUSPENDED' | 'DELETED' | 'PASSWORD_CHANGE_REQUIRED';
+    status: 'ACTIVE' | 'DEACTIVATE' | 'SUSPENDED' | 'DELETED' | 'PENDING_VERIFICATION' | 'PASSWORD_CHANGE_REQUIRED';
     userType: string;
     department?: string;
     permissions?: string[];

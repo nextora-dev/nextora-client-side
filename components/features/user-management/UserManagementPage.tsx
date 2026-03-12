@@ -33,6 +33,9 @@ import SchoolIcon from '@mui/icons-material/School';
 import WorkIcon from '@mui/icons-material/Work';
 import EngineeringIcon from '@mui/icons-material/Engineering';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import { ROLE_LABELS, RoleType } from '@/constants/roles';
 import { FACULTY, FACULTY_LABELS } from '@/constants/faculty';
 import { StatusType, STATUS_LABELS } from '@/constants';
@@ -76,11 +79,13 @@ interface UserStats {
     deactivatedUsers: number;
     suspendedUsers: number;
     deletedUsers: number;
+    pendingVerificationUsers?: number;
     passwordChangeRequiredUsers?: number;
     totalStudents: number;
     totalAcademicStaff: number;
     totalNonAcademicStaff: number;
     totalAdmins?: number;
+    totalSuperAdmins?: number;
 }
 
 interface EditFormData {
@@ -568,9 +573,10 @@ export default function UserManagementPage({
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'ACTIVE': return <CheckCircleIcon fontSize="small" />;
-            case 'DEACTIVATED': return <BlockIcon fontSize="small" />;
+            case 'DEACTIVATE': return <BlockIcon fontSize="small" />;
             case 'SUSPENDED': return <LockIcon fontSize="small" />;
             case 'DELETED': return <DeleteIcon fontSize="small" />;
+            case 'PENDING_VERIFICATION': return <VpnKeyIcon fontSize="small" />;
             case 'PASSWORD_CHANGE_REQUIRED': return <VpnKeyIcon fontSize="small" />;
             default: return null;
         }
@@ -579,9 +585,10 @@ export default function UserManagementPage({
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'ACTIVE': return theme.palette.success.main;
-            case 'DEACTIVATED': return theme.palette.warning.main;
+            case 'DEACTIVATE': return theme.palette.warning.main;
             case 'SUSPENDED': return theme.palette.error.main;
             case 'DELETED': return theme.palette.grey[500];
+            case 'PENDING_VERIFICATION': return theme.palette.info.main;
             case 'PASSWORD_CHANGE_REQUIRED': return theme.palette.secondary.main;
             default: return theme.palette.grey[500];
         }
@@ -594,6 +601,7 @@ export default function UserManagementPage({
         { label: 'Deactivated', value: userStats?.deactivatedUsers ?? 0, icon: BlockIcon, color: theme.palette.warning.main },
         { label: 'Suspended', value: userStats?.suspendedUsers ?? 0, icon: LockIcon, color: theme.palette.error.main },
         { label: 'Deleted', value: userStats?.deletedUsers ?? 0, icon: DeleteIcon, color: theme.palette.grey[600] },
+        { label: 'Pending', value: userStats?.pendingVerificationUsers ?? 0, icon: HourglassEmptyIcon, color: theme.palette.info.main },
         { label: 'Password Change', value: userStats?.passwordChangeRequiredUsers ?? 0, icon: VpnKeyIcon, color: theme.palette.secondary.main },
     ];
 
@@ -601,6 +609,10 @@ export default function UserManagementPage({
         { label: 'Students', value: userStats?.totalStudents ?? 0, icon: SchoolIcon, color: '#3B82F6' },
         { label: 'Academic Staff', value: userStats?.totalAcademicStaff ?? 0, icon: WorkIcon, color: '#8B5CF6' },
         { label: 'Non-Academic', value: userStats?.totalNonAcademicStaff ?? 0, icon: EngineeringIcon, color: '#F59E0B' },
+        ...(isSuperAdmin ? [
+            { label: 'Admins', value: userStats?.totalAdmins ?? 0, icon: AdminPanelSettingsIcon, color: '#EF4444' },
+            { label: 'Super Admins', value: userStats?.totalSuperAdmins ?? 0, icon: SupervisorAccountIcon, color: '#EC4899' },
+        ] : []),
     ];
 
     return (
@@ -622,11 +634,11 @@ export default function UserManagementPage({
 
             {/* Status Stats Cards */}
             <MotionBox variants={itemVariants} sx={{ mb: 2 }}>
-                <Grid container spacing={{ xs: 1, sm: 1.5 }}>
+                <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, flexWrap: 'wrap' }}>
                     {statusStats.map((stat, index) => {
                         const Icon = stat.icon;
                         return (
-                            <Grid size={{ xs: 6, sm: 4, md: 2 }} key={index}>
+                            <Box key={index} sx={{ flex: { xs: '1 1 calc(33.33% - 8px)', sm: '1 1 calc(25% - 12px)', md: '1 1 calc(14.28% - 12px)' }, minWidth: { xs: 100, sm: 120, md: 130 } }}>
                                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, height: '100%' }}>
                                     <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
                                         <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -640,19 +652,19 @@ export default function UserManagementPage({
                                         </Stack>
                                     </CardContent>
                                 </MotionCard>
-                            </Grid>
+                            </Box>
                         );
                     })}
-                </Grid>
+                </Box>
             </MotionBox>
 
             {/* Role Stats Cards */}
             <MotionBox variants={itemVariants} sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
-                <Grid container spacing={{ xs: 1, sm: 1.5 }}>
+                <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, flexWrap: 'wrap' }}>
                     {roleStats.map((stat, index) => {
                         const Icon = stat.icon;
                         return (
-                            <Grid size={{ xs: 6, sm: 4, md: 4 }} key={index}>
+                            <Box key={index} sx={{ flex: { xs: '1 1 calc(50% - 8px)', sm: '1 1 calc(33.33% - 12px)', md: `1 1 calc(${100 / roleStats.length}% - 12px)` }, minWidth: { xs: 120, sm: 140 } }}>
                                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, height: '100%' }}>
                                     <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
                                         <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -666,10 +678,10 @@ export default function UserManagementPage({
                                         </Stack>
                                     </CardContent>
                                 </MotionCard>
-                            </Grid>
+                            </Box>
                         );
                     })}
-                </Grid>
+                </Box>
             </MotionBox>
 
             {/* Filters & Search */}
@@ -702,16 +714,19 @@ export default function UserManagementPage({
                                 <Select value={statusFilter} label="Status" onChange={(e) => onSetStatusFilter(e.target.value as StatusType | '')}>
                                     <MenuItem value="">All Status</MenuItem>
                                     <MenuItem value="ACTIVE">Active</MenuItem>
-                                    <MenuItem value="DEACTIVATED">Deactivated</MenuItem>
+                                    <MenuItem value="DEACTIVATE">Deactivated</MenuItem>
                                     <MenuItem value="SUSPENDED">Suspended</MenuItem>
                                     <MenuItem value="DELETED">Deleted</MenuItem>
+                                    <MenuItem value="PENDING_VERIFICATION">Pending Verification</MenuItem>
                                     <MenuItem value="PASSWORD_CHANGE_REQUIRED">Password Change</MenuItem>
                                 </Select>
                             </FormControl>
                             <Tooltip title="Refresh">
-                                <IconButton onClick={handleRefresh} disabled={loading} sx={{ alignSelf: { xs: 'flex-end', sm: 'center' }, bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }, borderRadius: 2, width: 40, height: 40 }}>
-                                    <RefreshIcon sx={{ fontSize: 20 }} />
-                                </IconButton>
+                                <span>
+                                    <IconButton onClick={handleRefresh} disabled={loading} sx={{ alignSelf: { xs: 'flex-end', sm: 'center' }, bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }, borderRadius: 2, width: 40, height: 40 }}>
+                                        <RefreshIcon sx={{ fontSize: 20 }} />
+                                    </IconButton>
+                                </span>
                             </Tooltip>
                         </Stack>
                     </Stack>
@@ -824,7 +839,7 @@ export default function UserManagementPage({
                 <MenuItem onClick={handleViewUser}><VisibilityIcon sx={{ mr: 1.5, fontSize: 20 }} />View Details</MenuItem>
                 <MenuItem onClick={handleEditUser}><EditIcon sx={{ mr: 1.5, fontSize: 20 }} />Edit User</MenuItem>
                 <Divider />
-                {(selectedUser?.status === 'DEACTIVATED' || selectedUser?.status === 'PASSWORD_CHANGE_REQUIRED') && (
+                {(selectedUser?.status === 'DEACTIVATE' || selectedUser?.status === 'PASSWORD_CHANGE_REQUIRED' || selectedUser?.status === 'PENDING_VERIFICATION') && (
                     <MenuItem onClick={() => handleStatusAction('activate')} sx={{ color: 'success.main' }}><PersonIcon sx={{ mr: 1.5, fontSize: 20 }} />Activate</MenuItem>
                 )}
                 {selectedUser?.status === 'ACTIVE' && (
