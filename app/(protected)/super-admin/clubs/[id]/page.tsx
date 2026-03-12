@@ -17,6 +17,7 @@ export default function SuperAdminClubDetailPage() {
             clubId={clubId}
             backPath="/super-admin/clubs"
             isAdmin
+            isSuperAdmin
         />
     );
 }

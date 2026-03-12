@@ -90,6 +90,10 @@ export const CLUB_ENDPOINTS = {
     ADMIN_CHANGE_POSITION: (memId: number) => `${CLUB_ADMIN_BASE}/memberships/${memId}/position`,
     ADMIN_BULK_APPROVE: (clubId: number) => `${CLUB_ADMIN_BASE}/${clubId}/memberships/bulk-approve`,
     ADMIN_TOGGLE_REG: (clubId: number) => `${CLUB_ADMIN_BASE}/${clubId}/toggle-registration`,
+
+    // Super Admin — Permanent Delete
+    ADMIN_CLUB_PERMANENT: (clubId: number) => `${CLUB_ADMIN_BASE}/${clubId}/permanent`,
+    ADMIN_ANNOUNCEMENT_PERMANENT: (announcementId: number) => `${CLUB_ADMIN_BASE}/announcements/${announcementId}/permanent`,
 };
 
 // ============================================================================
@@ -474,6 +478,22 @@ export async function bulkApprove(clubId: number, membershipIds: number[]): Prom
 /** Admin toggle registration */
 export async function adminToggleRegistration(clubId: number): Promise<ClubActionResponse> {
     const response = await apiClient.put<ClubActionResponse>(CLUB_ENDPOINTS.ADMIN_TOGGLE_REG(clubId));
+    return response.data;
+}
+
+// ============================================================================
+// Super Admin Services — Permanent Delete
+// ============================================================================
+
+/** Permanently delete a club (super admin only) */
+export async function permanentDeleteClub(clubId: number): Promise<ClubActionResponse> {
+    const response = await apiClient.delete<ClubActionResponse>(CLUB_ENDPOINTS.ADMIN_CLUB_PERMANENT(clubId));
+    return response.data;
+}
+
+/** Permanently delete an announcement (super admin only) */
+export async function permanentDeleteAnnouncement(announcementId: number): Promise<ClubActionResponse> {
+    const response = await apiClient.delete<ClubActionResponse>(CLUB_ENDPOINTS.ADMIN_ANNOUNCEMENT_PERMANENT(announcementId));
     return response.data;
 }
 

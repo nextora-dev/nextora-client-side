@@ -65,11 +65,12 @@ function PushNotificationHandler({
             hasAutoRegistered.current = true;
             console.log('[PushNotificationHandler] Auto-registration successful');
           } else {
-            console.warn('[PushNotificationHandler] Auto-registration returned false');
+            console.warn('[PushNotificationHandler] Auto-registration returned false — server may be unavailable');
           }
         })
         .catch((err) => {
-          console.error('[PushNotificationHandler] Auto-registration error:', err);
+          // Don't use console.error — this fires commonly when the backend is not running
+          console.warn('[PushNotificationHandler] Auto-registration failed:', err instanceof Error ? err.message : err);
         })
         .finally(() => {
           isRegistering.current = false;

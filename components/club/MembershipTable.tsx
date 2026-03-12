@@ -202,14 +202,14 @@ export function MembershipTable({
                                                 color: 'primary.main',
                                             }}
                                         >
-                                            {member.userName?.charAt(0) || 'U'}
+                                            {member.memberName?.charAt(0) || member.userName?.charAt(0) || 'U'}
                                         </Avatar>
                                         <Box>
                                             <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3 }}>
-                                                {member.userName}
+                                                {member.memberName || member.userName}
                                             </Typography>
                                             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                                                {member.userEmail}
+                                                {member.memberEmail || member.userEmail}
                                             </Typography>
                                         </Box>
                                     </Box>
@@ -242,7 +242,7 @@ export function MembershipTable({
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                         <AccessTimeIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                                         <Typography variant="caption" color="text.secondary">
-                                            {new Date(member.joinedAt).toLocaleDateString('en-US', {
+                                            {new Date(member.joinDate || member.joinedAt || member.createdAt).toLocaleDateString('en-US', {
                                                 month: 'short',
                                                 day: 'numeric',
                                                 year: 'numeric',

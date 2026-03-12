@@ -35,9 +35,6 @@ export default function AcademicClubsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [mainTab, setMainTab] = useState(0);
 
-    useEffect(() => {
-        loadClubs({ page: 0, size: 20 });
-    }, [loadClubs]);
 
     useEffect(() => {
         const timer = setTimeout(() => {

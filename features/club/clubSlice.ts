@@ -56,6 +56,24 @@ function normalizeClubs(clubs: ClubResponse[]): ClubResponse[] {
 }
 
 /**
+ * Normalize membership response from backend.
+ * Backend uses memberName/memberEmail/joinDate; UI components may use userName/userEmail/joinedAt.
+ */
+function normalizeMembership(m: MembershipResponse): MembershipResponse {
+    const n = { ...m };
+    // Provide backward-compat aliases
+    if (!n.userName) n.userName = n.memberName;
+    if (!n.userEmail) n.userEmail = n.memberEmail;
+    if (!n.userId) n.userId = n.memberId;
+    if (!n.joinedAt) n.joinedAt = n.joinDate;
+    return n;
+}
+
+function normalizeMemberships(list: MembershipResponse[]): MembershipResponse[] {
+    return list.map(normalizeMembership);
+}
+
+/**
  * Normalize announcement response from backend.
  * Backend sends `isMembersOnly` (boolean). We derive `isPublic = !isMembersOnly` for backward compat.
  * Backend may also send `pinned` instead of `isPinned` in some cases.
@@ -197,6 +215,37 @@ const initialState: ClubState = {
 };
 
 // ============================================================================
+// Error Helper
+// ============================================================================
+
+/**
+ * Extract a human-readable error message from various error shapes:
+ * - ApiError from interceptor: { success, error: { code, message }, timestamp }
+ * - Axios error: { response: { data: { message } } }
+ * - Error instance: { message }
+ * - Plain string
+ */
+function extractErrorMessage(error: unknown, fallback: string): string {
+    if (typeof error === 'string') return error;
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'object' && error !== null) {
+        const obj = error as Record<string, unknown>;
+        // ApiError shape from Axios interceptor
+        if (obj.error && typeof obj.error === 'object') {
+            const nested = obj.error as Record<string, unknown>;
+            if (typeof nested.message === 'string') return nested.message;
+        }
+        // Top-level message
+        if (typeof obj.message === 'string') return obj.message;
+        // Axios error shape
+        const axiosErr = error as { response?: { data?: { message?: string; error?: { message?: string } } } };
+        if (axiosErr.response?.data?.error?.message) return axiosErr.response.data.error.message;
+        if (axiosErr.response?.data?.message) return axiosErr.response.data.message;
+    }
+    return fallback;
+}
+
+// ============================================================================
 // Async Thunks — Clubs
 // ============================================================================
 
@@ -206,8 +255,7 @@ export const fetchClubs = createAsyncThunk(
         try {
             return await clubServices.getClubs(params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch clubs');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch clubs'));
         }
     },
 );
@@ -219,8 +267,7 @@ export const fetchClubById = createAsyncThunk(
             const response = await clubServices.getClubById(id);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch club');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch club'));
         }
     },
 );
@@ -231,8 +278,7 @@ export const searchClubsAsync = createAsyncThunk(
         try {
             return await clubServices.searchClubs(params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to search clubs');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to search clubs'));
         }
     },
 );
@@ -243,8 +289,7 @@ export const fetchClubsByFaculty = createAsyncThunk(
         try {
             return await clubServices.getClubsByFaculty(faculty, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch clubs by faculty');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch clubs by faculty'));
         }
     },
 );
@@ -255,8 +300,7 @@ export const fetchOpenRegistrationClubs = createAsyncThunk(
         try {
             return await clubServices.getOpenRegistrationClubs(params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch open registration clubs');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch open registration clubs'));
         }
     },
 );
@@ -268,8 +312,7 @@ export const createClubAsync = createAsyncThunk(
             const response = await clubServices.createClub(data, logo);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to create club');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to create club'));
         }
     },
 );
@@ -281,8 +324,7 @@ export const updateClubAsync = createAsyncThunk(
             const response = await clubServices.updateClub(id, data, logo);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to update club');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to update club'));
         }
     },
 );
@@ -294,8 +336,7 @@ export const deleteClubAsync = createAsyncThunk(
             await clubServices.deleteClub(id);
             return id;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to delete club');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to delete club'));
         }
     },
 );
@@ -307,8 +348,7 @@ export const toggleRegistrationAsync = createAsyncThunk(
             await clubServices.toggleRegistration(id);
             return id;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to toggle registration');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to toggle registration'));
         }
     },
 );
@@ -323,8 +363,7 @@ export const joinClubAsync = createAsyncThunk(
         try {
             return await clubServices.joinClub(data);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to join club');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to join club'));
         }
     },
 );
@@ -335,8 +374,7 @@ export const fetchMyMemberships = createAsyncThunk(
         try {
             return await clubServices.getMyMemberships(params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch memberships');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch memberships'));
         }
     },
 );
@@ -348,8 +386,7 @@ export const leaveClubAsync = createAsyncThunk(
             await clubServices.leaveClub(clubId);
             return clubId;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to leave club');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to leave club'));
         }
     },
 );
@@ -360,8 +397,7 @@ export const fetchClubMembers = createAsyncThunk(
         try {
             return await clubServices.getClubMembers(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch club members');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch club members'));
         }
     },
 );
@@ -372,8 +408,7 @@ export const fetchPendingMembers = createAsyncThunk(
         try {
             return await clubServices.getPendingMembers(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch pending members');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch pending members'));
         }
     },
 );
@@ -385,8 +420,7 @@ export const approveMembershipAsync = createAsyncThunk(
             await clubServices.approveMembership(membershipId);
             return membershipId;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to approve membership');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to approve membership'));
         }
     },
 );
@@ -398,8 +432,7 @@ export const rejectMembershipAsync = createAsyncThunk(
             await clubServices.rejectMembership(membershipId, reason);
             return membershipId;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to reject membership');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to reject membership'));
         }
     },
 );
@@ -411,8 +444,7 @@ export const suspendMembershipAsync = createAsyncThunk(
             await clubServices.suspendMembership(membershipId, reason);
             return membershipId;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to suspend membership');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to suspend membership'));
         }
     },
 );
@@ -424,8 +456,7 @@ export const bulkApproveAsync = createAsyncThunk(
             await clubServices.bulkApprove(clubId, membershipIds);
             return membershipIds;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to bulk approve');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to bulk approve'));
         }
     },
 );
@@ -437,8 +468,7 @@ export const changePositionAsync = createAsyncThunk(
             await clubServices.changePosition(data);
             return data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to change position');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to change position'));
         }
     },
 );
@@ -453,8 +483,7 @@ export const fetchAnnouncementsByClub = createAsyncThunk(
         try {
             return await clubServices.getAnnouncementsByClub(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch announcements');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch announcements'));
         }
     },
 );
@@ -465,8 +494,7 @@ export const fetchPublicAnnouncements = createAsyncThunk(
         try {
             return await clubServices.getPublicAnnouncements(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch public announcements');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch public announcements'));
         }
     },
 );
@@ -479,8 +507,7 @@ export const createAnnouncementAsync = createAsyncThunk(
             // response is AnnouncementDetailResponse { success, message, data: AnnouncementResponse }
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to create announcement');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to create announcement'));
         }
     },
 );
@@ -492,8 +519,7 @@ export const updateAnnouncementAsync = createAsyncThunk(
             const response = await clubServices.updateAnnouncement(id, data, attachment);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to update announcement');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to update announcement'));
         }
     },
 );
@@ -505,8 +531,7 @@ export const deleteAnnouncementAsync = createAsyncThunk(
             await clubServices.deleteAnnouncement(id);
             return id;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to delete announcement');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to delete announcement'));
         }
     },
 );
@@ -518,8 +543,7 @@ export const pinAnnouncementAsync = createAsyncThunk(
             await clubServices.pinAnnouncement(id);
             return id;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to pin announcement');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to pin announcement'));
         }
     },
 );
@@ -531,8 +555,7 @@ export const unpinAnnouncementAsync = createAsyncThunk(
             await clubServices.unpinAnnouncement(id);
             return id;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to unpin announcement');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to unpin announcement'));
         }
     },
 );
@@ -547,8 +570,7 @@ export const fetchClubElections = createAsyncThunk(
         try {
             return await clubServices.getClubElections(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch elections');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch elections'));
         }
     },
 );
@@ -559,8 +581,7 @@ export const fetchActiveElections = createAsyncThunk(
         try {
             return await clubServices.getActiveElections(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch active elections');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch active elections'));
         }
     },
 );
@@ -571,8 +592,7 @@ export const fetchUpcomingElections = createAsyncThunk(
         try {
             return await clubServices.getUpcomingElections(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch upcoming elections');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch upcoming elections'));
         }
     },
 );
@@ -584,8 +604,7 @@ export const fetchElectionDetails = createAsyncThunk(
             const response = await clubServices.getElectionDetails(electionId);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch election details');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch election details'));
         }
     },
 );
@@ -601,8 +620,7 @@ export const fetchClubStatistics = createAsyncThunk(
             const response = await clubServices.getClubStatistics(clubId);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch club statistics');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch club statistics'));
         }
     },
 );
@@ -613,8 +631,7 @@ export const fetchActivityLogs = createAsyncThunk(
         try {
             return await clubServices.getActivityLogs(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch activity logs');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch activity logs'));
         }
     },
 );
@@ -628,8 +645,7 @@ export const fetchActivityLogsByType = createAsyncThunk(
         try {
             return await clubServices.getActivityLogsByType(clubId, type, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch activity logs by type');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch activity logs by type'));
         }
     },
 );
@@ -645,8 +661,7 @@ export const fetchClubByCode = createAsyncThunk(
             const response = await clubServices.getClubByCode(code);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch club by code');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch club by code'));
         }
     },
 );
@@ -657,8 +672,7 @@ export const fetchActiveMembers = createAsyncThunk(
         try {
             return await clubServices.getActiveMembers(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch active members');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch active members'));
         }
     },
 );
@@ -670,8 +684,7 @@ export const fetchMembershipById = createAsyncThunk(
             const response = await clubServices.getMembershipById(id);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch membership');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch membership'));
         }
     },
 );
@@ -682,8 +695,7 @@ export const fetchPinnedAnnouncements = createAsyncThunk(
         try {
             return await clubServices.getPinnedAnnouncements(clubId, params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch pinned announcements');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch pinned announcements'));
         }
     },
 );
@@ -694,8 +706,7 @@ export const searchAnnouncementsAsync = createAsyncThunk(
         try {
             return await clubServices.searchAnnouncements(params);
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to search announcements');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to search announcements'));
         }
     },
 );
@@ -707,8 +718,7 @@ export const fetchAnnouncementById = createAsyncThunk(
             const response = await clubServices.getAnnouncementById(id);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch announcement');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch announcement'));
         }
     },
 );
@@ -720,8 +730,7 @@ export const fetchElectionById = createAsyncThunk(
             const response = await clubServices.getElectionById(electionId);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch election');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch election'));
         }
     },
 );
@@ -733,8 +742,7 @@ export const fetchAdminClubStats = createAsyncThunk(
             const response = await clubServices.getAdminClubStats(clubId);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch admin club stats');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch admin club stats'));
         }
     },
 );
@@ -746,8 +754,7 @@ export const fetchAdminClubStatisticsOfficer = createAsyncThunk(
             const response = await clubServices.getAdminClubStatisticsOfficer(clubId);
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to fetch officer club stats');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to fetch officer club stats'));
         }
     },
 );
@@ -759,8 +766,35 @@ export const adminToggleRegistrationAsync = createAsyncThunk(
             await clubServices.adminToggleRegistration(clubId);
             return clubId;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Failed to toggle registration');
+            return rejectWithValue(extractErrorMessage(error, 'Failed to toggle registration'));
+        }
+    },
+);
+
+// ============================================================================
+// Async Thunks — Super Admin Permanent Delete
+// ============================================================================
+
+export const permanentDeleteClubAsync = createAsyncThunk(
+    'club/permanentDeleteClub',
+    async (clubId: number, { rejectWithValue }) => {
+        try {
+            const response = await clubServices.permanentDeleteClub(clubId);
+            return { id: clubId, response };
+        } catch (error: unknown) {
+            return rejectWithValue(extractErrorMessage(error, 'Failed to permanently delete club'));
+        }
+    },
+);
+
+export const permanentDeleteAnnouncementAsync = createAsyncThunk(
+    'club/permanentDeleteAnnouncement',
+    async (announcementId: number, { rejectWithValue }) => {
+        try {
+            const response = await clubServices.permanentDeleteAnnouncement(announcementId);
+            return { id: announcementId, response };
+        } catch (error: unknown) {
+            return rejectWithValue(extractErrorMessage(error, 'Failed to permanently delete announcement'));
         }
     },
 );
@@ -978,7 +1012,7 @@ const clubSlice = createSlice({
             })
             .addCase(fetchMyMemberships.fulfilled, (state, action) => {
                 state.isMembershipLoading = false;
-                state.myMemberships = action.payload.data.content;
+                state.myMemberships = normalizeMemberships(action.payload.data.content);
             })
             .addCase(fetchMyMemberships.rejected, (state, action) => {
                 state.isMembershipLoading = false;
@@ -1007,7 +1041,7 @@ const clubSlice = createSlice({
             })
             .addCase(fetchClubMembers.fulfilled, (state, action) => {
                 state.isMembershipLoading = false;
-                state.clubMembers = action.payload.data.content;
+                state.clubMembers = normalizeMemberships(action.payload.data.content);
                 state.totalMembers = action.payload.data.totalElements;
             })
             .addCase(fetchClubMembers.rejected, (state, action) => {
@@ -1022,7 +1056,7 @@ const clubSlice = createSlice({
             })
             .addCase(fetchPendingMembers.fulfilled, (state, action) => {
                 state.isMembershipLoading = false;
-                state.pendingMembers = action.payload.data.content;
+                state.pendingMembers = normalizeMemberships(action.payload.data.content);
                 state.totalPendingMembers = action.payload.data.totalElements;
             })
             .addCase(fetchPendingMembers.rejected, (state, action) => {
@@ -1299,7 +1333,7 @@ const clubSlice = createSlice({
             })
             .addCase(fetchActiveMembers.fulfilled, (state, action) => {
                 state.isMembershipLoading = false;
-                state.activeMembers = action.payload.data.content;
+                state.activeMembers = normalizeMemberships(action.payload.data.content);
                 state.totalActiveMembers = action.payload.data.totalElements;
             })
             .addCase(fetchActiveMembers.rejected, (state, action) => {
@@ -1315,7 +1349,7 @@ const clubSlice = createSlice({
             })
             .addCase(fetchMembershipById.fulfilled, (state, action) => {
                 state.isMembershipLoading = false;
-                state.selectedMembership = action.payload;
+                state.selectedMembership = normalizeMembership(action.payload);
             })
             .addCase(fetchMembershipById.rejected, (state, action) => {
                 state.isMembershipLoading = false;
@@ -1429,6 +1463,49 @@ const clubSlice = createSlice({
                 state.successMessage = 'Registration toggled successfully (admin)';
             })
             .addCase(adminToggleRegistrationAsync.rejected, (state, action) => {
+                state.error = action.payload as string;
+            });
+
+        // ----------------------------------------------------------------
+        // Super Admin — Permanent Delete Club
+        // ----------------------------------------------------------------
+        builder
+            .addCase(permanentDeleteClubAsync.pending, (state) => {
+                state.isDeleting = true;
+                state.error = null;
+            })
+            .addCase(permanentDeleteClubAsync.fulfilled, (state, action) => {
+                state.isDeleting = false;
+                const id = action.payload.id;
+                state.clubs = state.clubs.filter((c) => c.id !== id);
+                if (state.selectedClub?.id === id) state.selectedClub = null;
+                state.totalClubs = Math.max(0, state.totalClubs - 1);
+                state.successMessage = action.payload.response?.message || 'Club permanently deleted';
+            })
+            .addCase(permanentDeleteClubAsync.rejected, (state, action) => {
+                state.isDeleting = false;
+                state.error = action.payload as string;
+            });
+
+        // ----------------------------------------------------------------
+        // Super Admin — Permanent Delete Announcement
+        // ----------------------------------------------------------------
+        builder
+            .addCase(permanentDeleteAnnouncementAsync.pending, (state) => {
+                state.isDeleting = true;
+                state.error = null;
+            })
+            .addCase(permanentDeleteAnnouncementAsync.fulfilled, (state, action) => {
+                state.isDeleting = false;
+                const id = action.payload.id;
+                state.announcements = state.announcements.filter((a) => a.id !== id);
+                state.pinnedAnnouncements = state.pinnedAnnouncements.filter((a) => a.id !== id);
+                if (state.selectedAnnouncement?.id === id) state.selectedAnnouncement = null;
+                state.totalAnnouncements = Math.max(0, state.totalAnnouncements - 1);
+                state.successMessage = action.payload.response?.message || 'Announcement permanently deleted';
+            })
+            .addCase(permanentDeleteAnnouncementAsync.rejected, (state, action) => {
+                state.isDeleting = false;
                 state.error = action.payload as string;
             });
     },

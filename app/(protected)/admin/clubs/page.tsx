@@ -53,9 +53,6 @@ export default function AdminClubsPage() {
     const [mainTab, setMainTab] = useState(0);
     const [facultyFilter, setFacultyFilter] = useState('');
 
-    useEffect(() => {
-        loadClubs({ page: 0, size: 20 });
-    }, [loadClubs]);
 
     useEffect(() => {
         const timer = setTimeout(() => {

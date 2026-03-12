@@ -21,6 +21,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { motion } from 'framer-motion';
 import type { AnnouncementResponse } from '@/features/club/types';
 
@@ -31,12 +32,13 @@ interface AnnouncementCardProps {
     onClick?: (announcement: AnnouncementResponse) => void;
     onEdit?: (announcement: AnnouncementResponse) => void;
     onDelete?: (announcement: AnnouncementResponse) => void;
+    onPermanentDelete?: (announcement: AnnouncementResponse) => void;
     onTogglePin?: (announcement: AnnouncementResponse) => void;
     showActions?: boolean;
     index?: number;
 }
 
-export function AnnouncementCard({ announcement, onClick, onEdit, onDelete, onTogglePin, showActions = false, index = 0 }: AnnouncementCardProps) {
+export function AnnouncementCard({ announcement, onClick, onEdit, onDelete, onPermanentDelete, onTogglePin, showActions = false, index = 0 }: AnnouncementCardProps) {
     const theme = useTheme();
 
     // Backend sends `isMembersOnly`. Derive `isPublic` = !isMembersOnly.
@@ -238,6 +240,13 @@ export function AnnouncementCard({ announcement, onClick, onEdit, onDelete, onTo
                                 <Tooltip title="Delete">
                                     <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(announcement); }} sx={{ color: 'error.main' }}>
                                         <DeleteIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                            {onPermanentDelete && (
+                                <Tooltip title="Permanently Delete">
+                                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); onPermanentDelete(announcement); }} sx={{ color: '#EF4444' }}>
+                                        <DeleteForeverIcon sx={{ fontSize: 16 }} />
                                     </IconButton>
                                 </Tooltip>
                             )}

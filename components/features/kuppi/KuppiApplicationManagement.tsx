@@ -320,9 +320,11 @@ export default function KuppiApplicationManagement({
                         </Typography>
                     </Box>
                     <Tooltip title="Refresh">
-                        <IconButton onClick={handleRefresh} disabled={isLoading} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) } }}>
-                            <RefreshIcon />
-                        </IconButton>
+                        <span>
+                            <IconButton onClick={handleRefresh} disabled={isLoading} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) } }}>
+                                <RefreshIcon />
+                            </IconButton>
+                        </span>
                     </Tooltip>
                 </Stack>
             </MotionBox>

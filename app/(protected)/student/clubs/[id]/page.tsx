@@ -455,7 +455,7 @@ export default function StudentClubDetailPage() {
                                 {officers.map((officer) => {
                                     // Prefer officer data from club response, fallback to membership data
                                     const hasOfficer = !!(officer.officer || officer.member);
-                                    const displayName = officer.officer?.name || officer.member?.userName || null;
+                                    const displayName = officer.officer?.name || officer.member?.memberName || officer.member?.userName || null;
                                     const displayEmail = officer.officer?.email || officer.member?.userEmail || null;
                                     const displayAvatar = officer.officer?.profilePictureUrl || null;
                                     const initial = displayName?.charAt(0) || 'U';
@@ -753,7 +753,7 @@ export default function StudentClubDetailPage() {
                                                 <Stack direction="row" justifyContent="space-between">
                                                     <Typography variant="caption" color="text.secondary">Joined</Typography>
                                                     <Typography variant="caption" fontWeight={600}>
-                                                        {new Date(myMembership.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        {new Date(myMembership.joinDate || myMembership.joinedAt || myMembership.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                     </Typography>
                                                 </Stack>
                                             </Stack>
@@ -818,7 +818,7 @@ export default function StudentClubDetailPage() {
                             <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Officers</Typography>
                             <Stack spacing={1.5}>
                                 {officers.map((officer) => {
-                                    const name = officer.officer?.name || officer.member?.userName || 'Vacant';
+                                    const name = officer.officer?.name || officer.member?.memberName || officer.member?.userName || 'Vacant';
                                     const avatar = officer.officer?.profilePictureUrl || null;
                                     const initial = name !== 'Vacant' ? name.charAt(0) : '?';
                                     return (

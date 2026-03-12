@@ -206,14 +206,14 @@ export function MembershipActionDialog({
                                     borderColor: alpha(posColor, 0.2),
                                 }}
                             >
-                                {member.userName?.charAt(0) || 'U'}
+                                {member.memberName?.charAt(0) || member.userName?.charAt(0) || 'U'}
                             </Avatar>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                                 <Typography variant="body1" fontWeight={700} noWrap>
-                                    {member.userName}
+                                    {member.memberName || member.userName}
                                 </Typography>
                                 <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>
-                                    {member.userEmail}
+                                    {member.memberEmail || member.userEmail}
                                 </Typography>
                                 <Stack direction="row" spacing={0.75} sx={{ mt: 0.75 }}>
                                     <Chip

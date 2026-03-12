@@ -38,6 +38,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import EditIcon from '@mui/icons-material/Edit';
 import GroupsIcon from '@mui/icons-material/Groups';
 import PersonIcon from '@mui/icons-material/Person';
@@ -100,9 +101,10 @@ interface ClubDetailViewProps {
     clubId: number;
     backPath: string;
     isAdmin?: boolean;
+    isSuperAdmin?: boolean;
 }
 
-export default function ClubDetailView({ clubId, backPath, isAdmin = false }: ClubDetailViewProps) {
+export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSuperAdmin = false }: ClubDetailViewProps) {
     const theme = useTheme();
     const router = useRouter();
 
@@ -174,6 +176,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
         resetAdminClubStatistics,
         clearError,
         clearSuccess,
+        permanentDeleteClub,
+        permanentDeleteAnnouncement,
     } = useClub();
 
     // ── Tab state ──
@@ -220,6 +224,11 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
     const [deleteAnnouncementTarget, setDeleteAnnouncementTarget] = useState<AnnouncementResponse | null>(null);
     const [deleteAnnouncementOpen, setDeleteAnnouncementOpen] = useState(false);
 
+    // ── Permanent Delete dialog state (super admin only) ──
+    const [permDeleteClubOpen, setPermDeleteClubOpen] = useState(false);
+    const [permDeleteAnnouncementOpen, setPermDeleteAnnouncementOpen] = useState(false);
+    const [permDeleteAnnouncementTarget, setPermDeleteAnnouncementTarget] = useState<AnnouncementResponse | null>(null);
+
     // ── Change Position dialog state ──
     const [changePositionDialogOpen, setChangePositionDialogOpen] = useState(false);
     const [changePositionTarget, setChangePositionTarget] = useState<MembershipResponse | null>(null);
@@ -240,7 +249,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
     const [isMemberActionLoading, setIsMemberActionLoading] = useState(false);
 
     const club = selectedClub;
-    const stats = isAdmin ? adminClubStatistics : clubStatistics;
+    const hasAdminAccess = isAdmin || isSuperAdmin;
+    const stats = hasAdminAccess ? adminClubStatistics : clubStatistics;
 
     // ── Load club ──
     useEffect(() => { loadClubById(clubId); }, [clubId, loadClubById]);
@@ -267,7 +277,7 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
         loadAnnouncements(clubId, { page: announcementsPage, size: announcementsPageSize });
         loadElections(clubId, { page: electionsPage, size: electionsPageSize });
         loadActivityLogs(clubId, { page: logsPage, size: logsPageSize });
-        if (isAdmin) {
+        if (hasAdminAccess) {
             loadAdminClubStats(clubId);
         } else {
             loadClubStatistics(clubId);
@@ -384,9 +394,9 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
         loadAnnouncements(clubId, { page: announcementsPage, size: announcementsPageSize });
         loadElections(clubId, { page: electionsPage, size: electionsPageSize });
         loadActivityLogs(clubId, { page: logsPage, size: logsPageSize });
-        if (isAdmin) { loadAdminClubStats(clubId); }
+        if (hasAdminAccess) { loadAdminClubStats(clubId); }
         else { loadClubStatistics(clubId); }
-    }, [clubId, isAdmin, membersPage, membersPageSize, activeMembersPage, activeMembersPageSize, pendingPage, pendingPageSize, announcementsPage, announcementsPageSize, electionsPage, electionsPageSize, logsPage, logsPageSize, loadClubById, loadClubMembers, loadActiveMembers, loadPendingMembers, loadAnnouncements, loadElections, loadActivityLogs, loadAdminClubStats, loadClubStatistics]);
+    }, [clubId, hasAdminAccess, membersPage, membersPageSize, activeMembersPage, activeMembersPageSize, pendingPage, pendingPageSize, announcementsPage, announcementsPageSize, electionsPage, electionsPageSize, logsPage, logsPageSize, loadClubById, loadClubMembers, loadActiveMembers, loadPendingMembers, loadAnnouncements, loadElections, loadActivityLogs, loadAdminClubStats, loadClubStatistics]);
 
     // ── Edit dialog ──
     const handleOpenEdit = useCallback(() => {
@@ -415,10 +425,25 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
         router.push(backPath);
     }, [club, removeClub, router, backPath]);
 
+    const handlePermanentDeleteClub = useCallback(async () => {
+        if (!club) return;
+        await permanentDeleteClub(club.id);
+        setPermDeleteClubOpen(false);
+        router.push(backPath);
+    }, [club, permanentDeleteClub, router, backPath]);
+
+    const handlePermanentDeleteAnnouncement = useCallback(async () => {
+        if (!permDeleteAnnouncementTarget) return;
+        await permanentDeleteAnnouncement(permDeleteAnnouncementTarget.id);
+        setPermDeleteAnnouncementOpen(false);
+        setPermDeleteAnnouncementTarget(null);
+        loadAnnouncements(clubId, { page: announcementsPage, size: announcementsPageSize });
+    }, [permDeleteAnnouncementTarget, permanentDeleteAnnouncement, loadAnnouncements, clubId, announcementsPage, announcementsPageSize]);
+
     const handleToggleReg = useCallback(() => {
         if (!club) return;
-        if (isAdmin) { adminToggleReg(club.id); } else { toggleReg(club.id); }
-    }, [club, isAdmin, adminToggleReg, toggleReg]);
+        if (hasAdminAccess) { adminToggleReg(club.id); } else { toggleReg(club.id); }
+    }, [club, hasAdminAccess, adminToggleReg, toggleReg]);
 
     const handleBulkApprove = useCallback(() => {
         const ids = pendingMembers.map((m) => m.id);
@@ -450,10 +475,10 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
             loadClubMembers(clubId, { page: membersPage, size: membersPageSize });
             loadActiveMembers(clubId, { page: activeMembersPage, size: activeMembersPageSize });
             loadPendingMembers(clubId, { page: pendingPage, size: pendingPageSize });
-            if (isAdmin) { loadAdminClubStats(clubId); }
+            if (hasAdminAccess) { loadAdminClubStats(clubId); }
             else { loadClubStatistics(clubId); }
         } finally { setIsMemberActionLoading(false); }
-    }, [memberActionType, clubId, isAdmin, membersPage, membersPageSize, activeMembersPage, activeMembersPageSize, pendingPage, pendingPageSize, approveMember, rejectMember, suspendMember, closeMemberAction, loadClubMembers, loadActiveMembers, loadPendingMembers, loadAdminClubStats, loadClubStatistics]);
+    }, [memberActionType, clubId, hasAdminAccess, membersPage, membersPageSize, activeMembersPage, activeMembersPageSize, pendingPage, pendingPageSize, approveMember, rejectMember, suspendMember, closeMemberAction, loadClubMembers, loadActiveMembers, loadPendingMembers, loadAdminClubStats, loadClubStatistics]);
 
     // ── Announcement handlers ──
     const openCreateAnnouncement = useCallback(() => {
@@ -570,6 +595,7 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
     // ── Tab labels ──
     const tabLabels = [
         `Members (${totalMembers})`,
+        `Applications (${totalPendingMembers})`,
         `Announcements (${totalAnnouncements})`,
         `Elections (${totalElections})`,
         'Activity Log',
@@ -624,6 +650,13 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                         <Tooltip title={club.registrationOpen ? 'Close Registration' : 'Open Registration'}><IconButton onClick={handleToggleReg} sx={{ bgcolor: alpha(theme.palette.warning.main, 0.08), '&:hover': { bgcolor: alpha(theme.palette.warning.main, 0.15) } }}>{club.registrationOpen ? <ToggleOnIcon sx={{ color: 'success.main' }} /> : <ToggleOffIcon sx={{ color: 'text.disabled' }} />}</IconButton></Tooltip>
                         <Tooltip title="Refresh"><IconButton onClick={refreshAll} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.15) } }}><RefreshIcon /></IconButton></Tooltip>
                         <Tooltip title="Delete Club"><IconButton onClick={() => setDeleteConfirmOpen(true)} sx={{ bgcolor: alpha(theme.palette.error.main, 0.08), '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.15) } }}><DeleteIcon sx={{ color: 'error.main' }} /></IconButton></Tooltip>
+                        {isSuperAdmin && (
+                            <Tooltip title="Permanently Delete Club">
+                                <IconButton onClick={() => setPermDeleteClubOpen(true)} sx={{ bgcolor: alpha('#EF4444', 0.12), '&:hover': { bgcolor: alpha('#EF4444', 0.22) } }}>
+                                    <DeleteForeverIcon sx={{ color: '#EF4444' }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                     </Stack>
                 </Stack>
                 {club.description && <Typography variant="body2" color="text.secondary" sx={{ ml: 8.5, maxWidth: 600 }}>{club.description}</Typography>}
@@ -667,29 +700,6 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
 
             {/* ═══════════════ TAB 0: Members ═══════════════ */}
             <Box role="tabpanel" hidden={mainTab !== 0} sx={{ display: mainTab === 0 ? 'block' : 'none' }}>
-                {/* Pending Applications */}
-                {totalPendingMembers > 0 && (
-                    <MotionCard variants={itemVariants} elevation={0} sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
-                        <Box sx={{ height: 3, background: `linear-gradient(90deg, #F59E0B, ${alpha('#F59E0B', 0.3)})` }} />
-                        <CardContent sx={{ p: 3 }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                                <Stack direction="row" alignItems="center" spacing={1.5}>
-                                    <Box sx={{ width: 36, height: 36, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha('#F59E0B', 0.1) }}>
-                                        <HourglassEmptyIcon sx={{ color: '#F59E0B', fontSize: 20 }} />
-                                    </Box>
-                                    <Typography variant="h6" fontWeight={700}>Pending Applications ({totalPendingMembers})</Typography>
-                                </Stack>
-                                <Button size="small" variant="contained" color="success" onClick={handleBulkApprove} sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
-                                    Approve All
-                                </Button>
-                            </Stack>
-                            <MembershipTable members={pendingMembers} isLoading={isMembershipLoading} showActions onApproveRequest={(m) => openMemberAction('approve', m)} onRejectRequest={(m) => openMemberAction('reject', m)} />
-                            <TablePagination component="div" count={totalPendingMembers} page={pendingPage} onPageChange={handlePendingPageChange} rowsPerPage={pendingPageSize} onRowsPerPageChange={handlePendingPageSizeChange} rowsPerPageOptions={PAGE_SIZE_OPTIONS} />
-                        </CardContent>
-                    </MotionCard>
-                )}
-
-                    {/* Members — sub-tabs: All Members / Active Members */}
                 <MotionCard variants={itemVariants} elevation={0} sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
                     <Box sx={{ height: 3, background: `linear-gradient(90deg, #3B82F6, ${alpha('#3B82F6', 0.3)})` }} />
                     <CardContent sx={{ p: 3 }}>
@@ -699,7 +709,6 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                             </Box>
                             <Typography variant="h6" fontWeight={700}>Members</Typography>
                         </Stack>
-                        {/* Member sub-tabs */}
                         <Tabs value={memberSubTab} onChange={handleMemberSubTabChange} sx={{ mb: 2, minHeight: 32, '& .MuiTab-root': { minHeight: 32, textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', px: 1.5, py: 0 }, '& .MuiTabs-indicator': { height: 2, borderRadius: 1 } }}>
                             <Tab label={`All Members (${totalMembers})`} />
                             <Tab label={`Active (${totalActiveMembers})`} />
@@ -735,8 +744,45 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                 </MotionCard>
             </Box>
 
-            {/* ═══════════════ TAB 1: Announcements ═══════════════ */}
+            {/* ═══════════════ TAB 1: Applications ═══════════════ */}
             <Box role="tabpanel" hidden={mainTab !== 1} sx={{ display: mainTab === 1 ? 'block' : 'none' }}>
+                <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
+                    <Box sx={{ height: 3, background: `linear-gradient(90deg, #F59E0B, ${alpha('#F59E0B', 0.3)})` }} />
+                    <CardContent sx={{ p: 3 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
+                            <Stack direction="row" alignItems="center" spacing={1.5}>
+                                <Box sx={{ width: 36, height: 36, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha('#F59E0B', 0.1) }}>
+                                    <HourglassEmptyIcon sx={{ color: '#F59E0B', fontSize: 20 }} />
+                                </Box>
+                                <Typography variant="h6" fontWeight={700}>Pending Applications</Typography>
+                                <Chip label={totalPendingMembers} size="small" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, bgcolor: totalPendingMembers > 0 ? alpha('#F59E0B', 0.15) : alpha(theme.palette.text.disabled, 0.1), color: totalPendingMembers > 0 ? '#92400E' : 'text.disabled' }} />
+                            </Stack>
+                            {totalPendingMembers > 0 && (
+                                <Button size="small" variant="contained" color="success" onClick={handleBulkApprove} sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
+                                    Approve All
+                                </Button>
+                            )}
+                        </Stack>
+                        {isMembershipLoading ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><CircularProgress size={28} /></Box>
+                        ) : totalPendingMembers === 0 ? (
+                            <Box sx={{ textAlign: 'center', py: 8 }}>
+                                <CheckCircleIcon sx={{ fontSize: 60, color: alpha(theme.palette.success.main, 0.3), mb: 2 }} />
+                                <Typography variant="body1" color="text.secondary" fontWeight={500}>No pending applications</Typography>
+                                <Typography variant="caption" color="text.disabled">New membership requests will appear here for review</Typography>
+                            </Box>
+                        ) : (
+                            <>
+                                <MembershipTable members={pendingMembers} isLoading={false} showActions onApproveRequest={(m) => openMemberAction('approve', m)} onRejectRequest={(m) => openMemberAction('reject', m)} />
+                                <TablePagination component="div" count={totalPendingMembers} page={pendingPage} onPageChange={handlePendingPageChange} rowsPerPage={pendingPageSize} onRowsPerPageChange={handlePendingPageSizeChange} rowsPerPageOptions={PAGE_SIZE_OPTIONS} />
+                            </>
+                        )}
+                    </CardContent>
+                </MotionCard>
+            </Box>
+
+            {/* ═══════════════ TAB 2: Announcements ═══════════════ */}
+            <Box role="tabpanel" hidden={mainTab !== 2} sx={{ display: mainTab === 2 ? 'block' : 'none' }}>
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
                     <Box sx={{ height: 3, background: `linear-gradient(90deg, #8B5CF6, ${alpha('#8B5CF6', 0.3)})` }} />
                     <CardContent sx={{ p: 3 }}>
@@ -788,6 +834,7 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                                         onClick={handleViewAnnouncement}
                                         onEdit={openEditAnnouncement}
                                         onDelete={(ann) => { setDeleteAnnouncementTarget(ann); setDeleteAnnouncementOpen(true); }}
+                                        onPermanentDelete={isSuperAdmin ? (ann) => { setPermDeleteAnnouncementTarget(ann); setPermDeleteAnnouncementOpen(true); } : undefined}
                                         onTogglePin={handleTogglePin}
                                     />
                                 ))}
@@ -800,8 +847,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                 </MotionCard>
             </Box>
 
-            {/* ═══════════════ TAB 2: Elections ═══════════════ */}
-            <Box role="tabpanel" hidden={mainTab !== 2} sx={{ display: mainTab === 2 ? 'block' : 'none' }}>
+            {/* ═══════════════ TAB 3: Elections ═══════════════ */}
+            <Box role="tabpanel" hidden={mainTab !== 3} sx={{ display: mainTab === 3 ? 'block' : 'none' }}>
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
                     <Box sx={{ height: 3, background: `linear-gradient(90deg, #6366F1, ${alpha('#6366F1', 0.3)})` }} />
                     <CardContent sx={{ p: 3 }}>
@@ -838,8 +885,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                 </MotionCard>
             </Box>
 
-            {/* ═══════════════ TAB 3: Activity Log ═══════════════ */}
-            <Box role="tabpanel" hidden={mainTab !== 3} sx={{ display: mainTab === 3 ? 'block' : 'none' }}>
+            {/* ═══════════════ TAB 4: Activity Log ═══════════════ */}
+            <Box role="tabpanel" hidden={mainTab !== 4} sx={{ display: mainTab === 4 ? 'block' : 'none' }}>
                 <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}`, overflow: 'hidden' }}>
                     <Box sx={{ height: 3, background: `linear-gradient(90deg, #6B7280, ${alpha('#6B7280', 0.3)})` }} />
                     <CardContent sx={{ p: 3 }}>
@@ -958,6 +1005,52 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                 </DialogActions>
             </Dialog>
 
+            {/* ── Permanent Delete Club Confirm (Super Admin) ── */}
+            {isSuperAdmin && (
+                <Dialog open={permDeleteClubOpen} onClose={() => setPermDeleteClubOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: 1, overflow: 'hidden' } } }}>
+                    <Box sx={{ height: 4, background: 'linear-gradient(90deg, #EF4444, #DC2626)' }} />
+                    <DialogTitle sx={{ fontWeight: 700 }}>Permanently Delete Club</DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: 2, borderRadius: 1, bgcolor: alpha('#EF4444', 0.06), border: '1px solid', borderColor: alpha('#EF4444', 0.15) }}>
+                            <DeleteForeverIcon sx={{ color: '#EF4444', fontSize: 20, mt: 0.25 }} />
+                            <Typography variant="body2" color="text.secondary">
+                                Are you sure you want to <strong>permanently</strong> delete <strong>{club?.name}</strong>? This will irrecoverably remove the club, all members, announcements, elections, and activity logs. <strong>This action cannot be reversed.</strong>
+                            </Typography>
+                        </Box>
+                    </DialogContent>
+                    <Divider />
+                    <DialogActions sx={{ px: 3, py: 2 }}>
+                        <Button onClick={() => setPermDeleteClubOpen(false)} color="inherit" sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+                        <Button onClick={handlePermanentDeleteClub} variant="contained" disabled={isDeleting} startIcon={isDeleting ? <CircularProgress size={18} color="inherit" /> : <DeleteForeverIcon />} sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' }, boxShadow: `0 4px 14px ${alpha('#EF4444', 0.4)}` }}>
+                            {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            )}
+
+            {/* ── Permanent Delete Announcement Confirm (Super Admin) ── */}
+            {isSuperAdmin && (
+                <Dialog open={permDeleteAnnouncementOpen} onClose={() => setPermDeleteAnnouncementOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: 1, overflow: 'hidden' } } }}>
+                    <Box sx={{ height: 4, background: 'linear-gradient(90deg, #EF4444, #DC2626)' }} />
+                    <DialogTitle sx={{ fontWeight: 700 }}>Permanently Delete Announcement</DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, p: 2, borderRadius: 1, bgcolor: alpha('#EF4444', 0.06), border: '1px solid', borderColor: alpha('#EF4444', 0.15) }}>
+                            <DeleteForeverIcon sx={{ color: '#EF4444', fontSize: 20, mt: 0.25 }} />
+                            <Typography variant="body2" color="text.secondary">
+                                Are you sure you want to <strong>permanently</strong> delete &ldquo;<strong>{permDeleteAnnouncementTarget?.title}</strong>&rdquo;? <strong>This action cannot be reversed.</strong>
+                            </Typography>
+                        </Box>
+                    </DialogContent>
+                    <Divider />
+                    <DialogActions sx={{ px: 3, py: 2 }}>
+                        <Button onClick={() => setPermDeleteAnnouncementOpen(false)} color="inherit" sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}>Cancel</Button>
+                        <Button onClick={handlePermanentDeleteAnnouncement} variant="contained" disabled={isDeleting} startIcon={isDeleting ? <CircularProgress size={18} color="inherit" /> : <DeleteForeverIcon />} sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' }, boxShadow: 'none' }}>
+                            {isDeleting ? 'Deleting...' : 'Permanently Delete'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            )}
+
             {/* ── Change Position Dialog ── */}
             <Dialog open={changePositionDialogOpen} onClose={() => setChangePositionDialogOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: 1, overflow: 'hidden' } } }}>
                 <Box sx={{ height: 4, background: `linear-gradient(90deg, ${theme.palette.info.main}, ${alpha(theme.palette.info.main, 0.3)})` }} />
@@ -966,8 +1059,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                     {changePositionTarget && (
                         <Stack spacing={2.5} sx={{ mt: 1 }}>
                             <Box sx={{ p: 2, borderRadius: 1, bgcolor: alpha(theme.palette.info.main, 0.04), border: '1px solid', borderColor: alpha(theme.palette.info.main, 0.1) }}>
-                                <Typography variant="body2" fontWeight={600}>{changePositionTarget.userName}</Typography>
-                                <Typography variant="caption" color="text.secondary">{changePositionTarget.userEmail}</Typography>
+                                <Typography variant="body2" fontWeight={600}>{changePositionTarget.memberName || changePositionTarget.userName}</Typography>
+                                <Typography variant="caption" color="text.secondary">{changePositionTarget.memberEmail || changePositionTarget.userEmail}</Typography>
                                 <Chip label={(changePositionTarget.position || 'MEMBER').replace(/_/g, ' ')} size="small" sx={{ ml: 1, fontSize: '0.7rem', height: 22 }} />
                             </Box>
                             <FormControl fullWidth>
@@ -1086,11 +1179,11 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                             <Box sx={{ p: 2.5, borderRadius: 1, bgcolor: alpha('#3B82F6', 0.04), border: '1px solid', borderColor: alpha('#3B82F6', 0.1) }}>
                                 <Stack direction="row" spacing={2} alignItems="center">
                                     <Avatar sx={{ width: 48, height: 48, bgcolor: alpha('#3B82F6', 0.1), color: '#3B82F6', fontWeight: 700, fontSize: '1.1rem' }}>
-                                        {selectedMembership.userName?.charAt(0) || 'U'}
+                                        {selectedMembership.memberName?.charAt(0) || selectedMembership.userName?.charAt(0) || 'U'}
                                     </Avatar>
                                     <Box sx={{ flex: 1 }}>
-                                        <Typography variant="subtitle1" fontWeight={700}>{selectedMembership.userName}</Typography>
-                                        <Typography variant="body2" color="text.secondary">{selectedMembership.userEmail}</Typography>
+                                        <Typography variant="subtitle1" fontWeight={700}>{selectedMembership.memberName || selectedMembership.userName}</Typography>
+                                        <Typography variant="body2" color="text.secondary">{selectedMembership.memberEmail || selectedMembership.userEmail}</Typography>
                                     </Box>
                                 </Stack>
                             </Box>
@@ -1122,7 +1215,7 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false }: Cl
                                 <Grid size={{ xs: 6 }}>
                                     <Typography variant="caption" color="text.disabled" fontWeight={600}>Joined</Typography>
                                     <Typography variant="body2">
-                                        {new Date(selectedMembership.joinedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                        {new Date(selectedMembership.joinDate || selectedMembership.joinedAt || selectedMembership.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                                     </Typography>
                                 </Grid>
                             </Grid>

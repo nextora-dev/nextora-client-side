@@ -722,9 +722,11 @@ export default function UserManagementPage({
                                 </Select>
                             </FormControl>
                             <Tooltip title="Refresh">
-                                <IconButton onClick={handleRefresh} disabled={loading} sx={{ alignSelf: { xs: 'flex-end', sm: 'center' }, bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }, borderRadius: 2, width: 40, height: 40 }}>
-                                    <RefreshIcon sx={{ fontSize: 20 }} />
-                                </IconButton>
+                                <span>
+                                    <IconButton onClick={handleRefresh} disabled={loading} sx={{ alignSelf: { xs: 'flex-end', sm: 'center' }, bgcolor: alpha(theme.palette.primary.main, 0.1), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }, borderRadius: 2, width: 40, height: 40 }}>
+                                        <RefreshIcon sx={{ fontSize: 20 }} />
+                                    </IconButton>
+                                </span>
                             </Tooltip>
                         </Stack>
                     </Stack>

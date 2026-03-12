@@ -152,17 +152,34 @@ export interface UpdateClubRequest {
 
 export interface MembershipResponse {
     id: number;
+    membershipNumber: string | null;
     clubId: number;
-    clubName: string;
     clubCode: string;
-    userId: number;
-    userName: string;
-    userEmail: string;
-    position: ClubPosition;
+    clubName: string;
+    memberId: number;
+    memberName: string;
+    memberEmail: string;
+    memberProfilePictureUrl: string | null;
+    memberStudentId: string | null;
+    memberBatch: string | null;
     status: MembershipStatus;
+    position: ClubPosition | null;
+    joinDate: string;
+    expiryDate: string | null;
     remarks: string | null;
-    joinedAt: string;
+    approvedAt: string | null;
+    approvedById: number | null;
+    approvedByName: string | null;
+    canVote: boolean;
+    canNominate: boolean;
+    createdAt: string;
     updatedAt: string;
+    isActive: boolean;
+    /** @deprecated — old field name aliases for backward compat */
+    userId?: number;
+    userName?: string;
+    userEmail?: string;
+    joinedAt?: string;
 }
 
 export interface MembershipListResponse {

@@ -162,11 +162,11 @@ export function ClubViewDialog({
                                     fontWeight: 700,
                                 }}
                             >
-                                {membership.userName?.charAt(0) || 'U'}
+                                {membership.memberName?.charAt(0) || membership.userName?.charAt(0) || 'U'}
                             </Avatar>
                             <Box>
-                                <Typography variant="h6" fontWeight={600}>{membership.userName}</Typography>
-                                <Typography variant="body2" color="text.secondary">{membership.userEmail}</Typography>
+                                <Typography variant="h6" fontWeight={600}>{membership.memberName || membership.userName}</Typography>
+                                <Typography variant="body2" color="text.secondary">{membership.memberEmail || membership.userEmail}</Typography>
                             </Box>
                         </Stack>
                         <Divider />
@@ -200,7 +200,7 @@ export function ClubViewDialog({
                             <Box sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
                                 <Typography variant="caption" color="text.secondary">Joined</Typography>
                                 <Typography variant="body1">
-                                    {new Date(membership.joinedAt).toLocaleDateString()}
+                                    {new Date(membership.joinDate || membership.joinedAt || membership.createdAt).toLocaleDateString()}
                                 </Typography>
                             </Box>
                         </Box>

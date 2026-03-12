@@ -57,7 +57,7 @@ export function MembershipCard({ membership, onLeave, onSelect, index = 0 }: Mem
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
                 <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-                    Joined {new Date(membership.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    Joined {new Date(membership.joinDate || membership.joinedAt || membership.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </Typography>
                 {membership.status === 'ACTIVE' && onLeave && (
                     <Tooltip title="Leave Club">

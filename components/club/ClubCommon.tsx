@@ -95,16 +95,18 @@ export default function ClubCommon({
                     <Stack direction="row" spacing={1} alignItems="center">
                         {headerActions}
                         <Tooltip title="Refresh">
-                            <IconButton
-                                onClick={onRefresh}
-                                sx={{
-                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
-                                }}
-                                disabled={!!isLoading}
-                            >
-                                <RefreshIcon />
-                            </IconButton>
+                            <span>
+                                <IconButton
+                                    onClick={onRefresh}
+                                    sx={{
+                                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
+                                    }}
+                                    disabled={!!isLoading}
+                                >
+                                    <RefreshIcon />
+                                </IconButton>
+                            </span>
                         </Tooltip>
                     </Stack>
                 </Stack>

@@ -143,7 +143,7 @@ function MembershipCard({ membership, onLeave, onSelect }: {
                 <Stack direction="row" spacing={0.5} alignItems="center">
                     <CalendarTodayIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
                     <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-                        {new Date(membership.joinedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(membership.joinDate || membership.joinedAt || membership.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </Typography>
                 </Stack>
                 {membership.status === 'ACTIVE' && (

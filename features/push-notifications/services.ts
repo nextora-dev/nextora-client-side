@@ -26,22 +26,38 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
   if (typeof error === 'object' && error !== null) {
+    const err = error as Record<string, unknown>;
+
+    // Handle ApiError shape from Axios response interceptor: { success, error: { code, message }, timestamp }
+    if (err.error && typeof err.error === 'object') {
+      const nested = err.error as Record<string, unknown>;
+      if (typeof nested.message === 'string') {
+        return nested.message;
+      }
+    }
+
+    // Handle raw Axios error shape: { response: { data: { message } } }
     const axiosError = error as {
-      response?: { data?: { message?: string }, status?: number, statusText?: string },
+      response?: { data?: { message?: string; error?: { message?: string } }, status?: number, statusText?: string },
       message?: string,
       code?: string
     };
     if (axiosError.response?.data?.message) {
       return axiosError.response.data.message;
     }
+    if (axiosError.response?.data?.error?.message) {
+      return axiosError.response.data.error.message;
+    }
     if (axiosError.response?.statusText) {
       return `${axiosError.response.status}: ${axiosError.response.statusText}`;
     }
-    if (axiosError.message) {
-      return axiosError.message;
+
+    // Handle plain { message } shape
+    if (typeof err.message === 'string') {
+      return err.message;
     }
-    if (axiosError.code) {
-      return `Error code: ${axiosError.code}`;
+    if (typeof err.code === 'string') {
+      return `Error code: ${err.code}`;
     }
   }
   return 'Unknown error occurred';
@@ -69,10 +85,17 @@ export async function registerPushToken(
     return response;
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    console.error('[Push] Failed to register push token:', {
-      message: errorMessage,
-      error: error,
-      request: { ...request, token: request.token?.substring(0, 20) + '...' }
+    const isNetworkError = errorMessage.toLowerCase().includes('network')
+      || (typeof error === 'object' && error !== null && (error as Record<string, unknown>).error
+          && typeof (error as Record<string, unknown>).error === 'object'
+          && ((error as Record<string, unknown>).error as Record<string, unknown>).code === 'NETWORK_ERROR');
+
+    // Use warn for network errors (backend probably not running) to reduce console noise
+    const logFn = isNetworkError ? console.warn : console.error;
+    logFn('[Push] Failed to register push token:', errorMessage, {
+      // Spread the error's own enumerable props so they actually print, unlike JSON.stringify on certain objects
+      errorDetail: typeof error === 'object' && error !== null ? { ...error as object } : error,
+      request: { ...request, token: request.token?.substring(0, 20) + '...' },
     });
     throw new Error(`Failed to register push token: ${errorMessage}`);
   }
@@ -121,7 +144,8 @@ export async function getPushStatus(): Promise<ApiResponse<PushStatusResponse>> 
     return response;
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    console.error('[Push] Failed to get push status:', errorMessage);
+    // Use warn — this commonly fires when backend is not running
+    console.warn('[Push] Failed to get push status:', errorMessage);
     throw new Error(`Failed to get push status: ${errorMessage}`);
   }
 }

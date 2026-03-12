@@ -54,9 +54,6 @@ export default function NonAcademicClubsPage() {
     const [mainTab, setMainTab] = useState(0);
     const [facultyFilter, setFacultyFilter] = useState('');
 
-    useEffect(() => {
-        loadClubs({ page: 0, size: 20 });
-    }, [loadClubs]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -143,8 +140,6 @@ export default function NonAcademicClubsPage() {
                     clubs={clubs}
                     isLoading={isClubLoading}
                     onView={handleViewClub}
-                    onManage={handleViewClub}
-                    canManage={permissions?.canCreateClub ?? false}
                 />
             </Box>
 

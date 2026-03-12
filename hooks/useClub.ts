@@ -89,6 +89,8 @@ import {
     adminToggleRegistrationAsync,
     fetchActivityLogs,
     fetchActivityLogsByType,
+    permanentDeleteClubAsync,
+    permanentDeleteAnnouncementAsync,
     // Actions
     clearClubError,
     clearClubSuccessMessage,
@@ -163,7 +165,7 @@ export function useClub() {
     const isOfficerInClub = useCallback(
         (clubId: number): boolean => {
             const membership = myMemberships.find((m) => m.clubId === clubId && m.status === 'ACTIVE');
-            return membership ? isOfficerPosition(membership.position) : false;
+            return membership?.position ? isOfficerPosition(membership.position) : false;
         },
         [myMemberships],
     );
@@ -328,6 +330,16 @@ export function useClub() {
         [dispatch],
     );
 
+    // Super Admin — Permanent Delete
+    const permanentDeleteClub = useCallback(
+        (clubId: number) => dispatch(permanentDeleteClubAsync(clubId)),
+        [dispatch],
+    );
+    const permanentDeleteAnnouncement = useCallback(
+        (announcementId: number) => dispatch(permanentDeleteAnnouncementAsync(announcementId)),
+        [dispatch],
+    );
+
     // Utility
     const clearError = useCallback(() => dispatch(clearClubError()), [dispatch]);
     const clearSuccess = useCallback(() => dispatch(clearClubSuccessMessage()), [dispatch]);
@@ -437,6 +449,10 @@ export function useClub() {
         adminToggleReg,
         loadActivityLogs,
         loadActivityLogsByType,
+
+        // Super Admin — Permanent Delete
+        permanentDeleteClub,
+        permanentDeleteAnnouncement,
 
         // Utility
         clearError,
