@@ -25,7 +25,11 @@ import StorageIcon from '@mui/icons-material/Storage';
 import SecurityIcon from '@mui/icons-material/Security';
 import HistoryIcon from '@mui/icons-material/History';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+<<<<<<< feature/2017-intranet
+import LanIcon from '@mui/icons-material/Lan';
+=======
 import GroupsIcon from '@mui/icons-material/Groups';
+>>>>>>> dev
 import type { RoleType } from '@/constants/roles';
 import { ROLES } from '@/constants/roles';
 
@@ -51,6 +55,7 @@ export const STUDENT_NAVIGATION: NavigationItem[] = [
     { id: 'map', label: 'Campus Map', icon: MapIcon, path: '/student/maps', badge: 0 },
     { id: 'lecturers', label: 'Meet Lecturers', icon: PersonIcon, path: '/student/meetings', badge: 0 },
     { id: 'sru', label: 'Contact SRU', icon: MessageIcon, path: '/student/sru', badge: 0 },
+    { id: 'intranet', label: 'Intranet', icon: LanIcon, path: '/student/intranet', badge: 0 },
 ];
 
 // Academic Staff Navigation
@@ -183,4 +188,3 @@ export function getBrandingByRole(role: RoleType): { title: string; subtitle: st
             };
     }
 }
-

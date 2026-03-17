@@ -12,8 +12,12 @@ import adminReducer from '@/features/admin/adminSlice';
 import superAdminReducer from '@/features/super-admin/superAdminSlice';
 import adminUserManagementReducer from '@/features/super-admin/adminUserManagementSlice';
 import kuppiReducer from '@/features/kuppi/kuppiSlice';
+<<<<<<< feature/2017-intranet
+import intranetReducer from '@/features/intranet/intranetSlice';
+=======
 import clubReducer from '@/features/club/clubSlice';
 import electionReducer from '@/features/election/electionSlice';
+>>>>>>> dev
 import {
     persistStore,
     persistReducer,
@@ -38,8 +42,12 @@ const rootReducer = combineReducers({
     superAdmin: superAdminReducer,
     adminUserManagement: adminUserManagementReducer,
     kuppi: kuppiReducer,
+<<<<<<< feature/2017-intranet
+    intranet: intranetReducer,
+=======
     club: clubReducer,
     election: electionReducer,
+>>>>>>> dev
 });
 
 // ============================================================================
