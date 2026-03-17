@@ -8,3 +8,4 @@ export { usePWA } from './usePWA';
 export { usePushNotifications } from './usePushNotifications';
 export { useClub } from './useClub';
 export { default as useClubPage } from './useClubPage';
+export { useIntranet } from './useIntranet';

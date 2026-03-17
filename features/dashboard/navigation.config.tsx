@@ -25,11 +25,8 @@ import StorageIcon from '@mui/icons-material/Storage';
 import SecurityIcon from '@mui/icons-material/Security';
 import HistoryIcon from '@mui/icons-material/History';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-<<<<<<< feature/2017-intranet
 import LanIcon from '@mui/icons-material/Lan';
-=======
 import GroupsIcon from '@mui/icons-material/Groups';
->>>>>>> dev
 import type { RoleType } from '@/constants/roles';
 import { ROLES } from '@/constants/roles';
 
