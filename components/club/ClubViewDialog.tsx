@@ -74,11 +74,9 @@ export function ClubViewDialog({
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
+            <DialogTitle sx={{ fontWeight: 600 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6" fontWeight={600}>
-                        {mode ? titleMap[mode] : 'Details'}
-                    </Typography>
+                    {mode ? titleMap[mode] : 'Details'}
                     <Button onClick={onClose} size="small">
                         <CloseIcon />
                     </Button>

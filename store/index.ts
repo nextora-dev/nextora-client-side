@@ -15,6 +15,7 @@ import kuppiReducer from '@/features/kuppi/kuppiSlice';
 import intranetReducer from '@/features/intranet/intranetSlice';
 import clubReducer from '@/features/club/clubSlice';
 import electionReducer from '@/features/election/electionSlice';
+import eventReducer from '@/features/event/eventSlice';
 import {
     persistStore,
     persistReducer,
@@ -42,6 +43,7 @@ const rootReducer = combineReducers({
     intranet: intranetReducer,
     club: clubReducer,
     election: electionReducer,
+    event: eventReducer,
 });
 
 // ============================================================================

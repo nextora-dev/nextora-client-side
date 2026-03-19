@@ -528,12 +528,12 @@ export default function UnifiedSettingsPage(_props: UnifiedSettingsPageProps) {
 
             {/* Change Password Dialog */}
             <Dialog open={changePasswordDialog} onClose={() => !isChangingPassword && setChangePasswordDialog(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>
+                <DialogTitle sx={{ fontWeight: 600 }}>
                     <Stack direction="row" alignItems="center" spacing={1.5}>
                         <Box sx={{ width: 40, height: 40, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
                             <LockIcon sx={{ color: 'primary.main' }} />
                         </Box>
-                        <Typography variant="h6" fontWeight={600}>Change Password</Typography>
+                        Change Password
                     </Stack>
                 </DialogTitle>
                 <DialogContent>

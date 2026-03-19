@@ -130,7 +130,7 @@ export function MembershipActionDialog({
             {/* Accent bar */}
             <Box sx={{ height: 4, background: `linear-gradient(90deg, ${actionColor}, ${alpha(actionColor, 0.4)})` }} />
 
-            <DialogTitle sx={{ pb: 1 }}>
+            <DialogTitle sx={{ pb: 1, fontWeight: 700 }}>
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                     <Box
                         sx={{
@@ -148,9 +148,7 @@ export function MembershipActionDialog({
                     >
                         {config.icon}
                     </Box>
-                    <Typography variant="h6" fontWeight={700}>
-                        {config.title}
-                    </Typography>
+                    {config.title}
                 </Stack>
             </DialogTitle>
 
