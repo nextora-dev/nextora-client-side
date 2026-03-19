@@ -16,6 +16,7 @@ import intranetReducer from '@/features/intranet/intranetSlice';
 import clubReducer from '@/features/club/clubSlice';
 import electionReducer from '@/features/election/electionSlice';
 import eventReducer from '@/features/event/eventSlice';
+import boardingHouseReducer from '@/features/boardinghouse/boardingHouseSlice';
 import {
     persistStore,
     persistReducer,
@@ -44,6 +45,7 @@ const rootReducer = combineReducers({
     club: clubReducer,
     election: electionReducer,
     event: eventReducer,
+    boardingHouse: boardingHouseReducer,
 });
 
 // ============================================================================
