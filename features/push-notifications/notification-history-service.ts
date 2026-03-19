@@ -78,16 +78,20 @@ function getErrorMessage(error: unknown): string {
  * These are expected during development or when the server is down,
  * and should be logged at a lower severity.
  */
-function isNetworkError(error: unknown): boolean {
+function isNetworkOrNotFoundError(error: unknown): boolean {
   const msg = getErrorMessage(error).toLowerCase();
+  // Also check the HTTP status code for 404
+  const status = (error as { response?: { status?: number } })?.response?.status;
   return (
+    status === 404 ||
     msg.includes('network error') ||
     msg.includes('econnrefused') ||
     msg.includes('econnreset') ||
     msg.includes('enotfound') ||
     msg.includes('timeout') ||
     msg.includes('aborted') ||
-    msg.includes('failed to fetch')
+    msg.includes('failed to fetch') ||
+    msg.includes('not found')
   );
 }
 
@@ -109,7 +113,7 @@ export async function getNotificationHistory(
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    if (!isNetworkError(error)) {
+    if (!isNetworkOrNotFoundError(error)) {
       console.error('[NotificationHistory] Failed to fetch history:', msg);
     }
     throw new Error(`Failed to fetch notification history: ${msg}`);
@@ -129,7 +133,7 @@ export async function getUnreadNotifications(): Promise<
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    if (!isNetworkError(error)) {
+    if (!isNetworkOrNotFoundError(error)) {
       console.error('[NotificationHistory] Failed to fetch unread:', msg);
     }
     throw new Error(`Failed to fetch unread notifications: ${msg}`);
@@ -147,7 +151,7 @@ export async function getUnreadCount(): Promise<ApiResponse<{ unreadCount: numbe
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    if (!isNetworkError(error)) {
+    if (!isNetworkOrNotFoundError(error)) {
       console.error('[NotificationHistory] Failed to fetch unread count:', msg);
     }
     throw new Error(`Failed to fetch unread count: ${msg}`);
@@ -167,7 +171,7 @@ export async function markNotificationAsRead(
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    if (!isNetworkError(error)) {
+    if (!isNetworkOrNotFoundError(error)) {
       console.error('[NotificationHistory] Failed to mark as read:', msg);
     }
     throw new Error(`Failed to mark notification as read: ${msg}`);
@@ -187,7 +191,7 @@ export async function markAllNotificationsAsRead(): Promise<
     return response;
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    if (!isNetworkError(error)) {
+    if (!isNetworkOrNotFoundError(error)) {
       console.error('[NotificationHistory] Failed to mark all as read:', msg);
     }
     throw new Error(`Failed to mark all notifications as read: ${msg}`);
