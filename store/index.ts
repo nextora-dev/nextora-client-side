@@ -18,6 +18,7 @@ import electionReducer from '@/features/election/electionSlice';
 import eventReducer from '@/features/event/eventSlice';
 import boardingHouseReducer from '@/features/boardinghouse/boardingHouseSlice';
 import lostFoundReducer from '@/features/lostfound/lostFoundSlice';
+import meetingReducer from '@/features/meeting/meetingSlice';
 import {
     persistStore,
     persistReducer,
@@ -48,6 +49,7 @@ const rootReducer = combineReducers({
     event: eventReducer,
     boardingHouse: boardingHouseReducer,
     lostFound: lostFoundReducer,
+    meeting: meetingReducer,
 });
 
 // ============================================================================
