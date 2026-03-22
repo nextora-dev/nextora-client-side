@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+*.md
+.env*
+.gitignore
+.eslintrc*
+.prettierrc*
+.vscode
+.idea
+coverage
+.husky
+dist
+out

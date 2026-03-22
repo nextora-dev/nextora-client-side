@@ -173,6 +173,7 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   // Enable React Strict Mode for development
   reactStrictMode: true,
+  output: 'standalone',
   // Optimize images
   images: {
     formats: ["image/avif", "image/webp"],
