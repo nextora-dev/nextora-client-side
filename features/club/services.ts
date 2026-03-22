@@ -36,10 +36,10 @@ import {
 // Endpoints
 // ============================================================================
 
-const CLUB_BASE = '/club';
-const CLUB_ANNOUNCEMENTS_BASE = '/club/announcements';
-const CLUB_ADMIN_BASE = '/admin/club';
-const ELECTION_BASE = '/club/election';
+const CLUB_BASE = '/clubs';
+const CLUB_ANNOUNCEMENTS_BASE = '/clubs/announcements';
+const CLUB_ADMIN_BASE = '/admin/clubs';
+const ELECTION_BASE = '/clubs/election';
 
 export const CLUB_ENDPOINTS = {
     // Club CRUD

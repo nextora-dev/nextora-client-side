@@ -40,7 +40,7 @@ export default function ListingDetailDialog({ open, onClose, listing, isLoading 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper">
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight={700}>{listing.title}</Typography>
+                <Typography variant="h6" component="div" fontWeight={700}>{listing.title}</Typography>
                 <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
             </DialogTitle>
             <DialogContent dividers>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -40,10 +40,11 @@ import { PushNotificationWrapper } from '@/providers/PushNotificationWrapper';
 import { NotificationBell, NotificationList } from '@/components/notifications';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { selectUser, logoutAsync } from '@/features/auth/authSlice';
-import { getNavigationByRole, getBrandingByRole } from '@/features/dashboard';
+import { getNavigationByRole, getBrandingByRole, filterNavigationByClubMembership } from '@/features/dashboard';
 import { ROLES } from '@/constants/roles';
 import { useProfile } from '@/hooks/useProfile';
-
+import { isClubMemberByRole } from '@/lib/student-role.helpers';
+import type { StudentRoleSpecificData } from '@/types/user';
 const DRAWER_WIDTH = 256;
 const DRAWER_COLLAPSED_WIDTH = 64;
 
@@ -69,11 +70,25 @@ export default function DashboardLayout({
     const user = useAppSelector(selectUser);
     const userRole = user?.role || ROLES.STUDENT;
 
-    // Get full profile data (includes profile picture)
+    // Get full profile data (includes profile picture and student sub-roles)
     const { profile } = useProfile();
 
+    // Determine if user is a club member based on their student sub-roles
+    // Only STUDENT role users with CLUB_MEMBER sub-role can access elections
+    const isClubMember = useMemo(() => {
+        if (userRole !== ROLES.STUDENT) return false;
+        if (!profile?.roleSpecificData) return false;
+        return isClubMemberByRole(profile.roleSpecificData as StudentRoleSpecificData);
+    }, [userRole, profile?.roleSpecificData]);
+
     // Get role-based navigation and branding
-    const navigationItems = useMemo(() => getNavigationByRole(userRole), [userRole]);
+    const baseNavItems = useMemo(() => getNavigationByRole(userRole), [userRole]);
+    const navigationItems = useMemo(() => {
+        if (userRole === ROLES.STUDENT) {
+            return filterNavigationByClubMembership(baseNavItems, isClubMember);
+        }
+        return baseNavItems;
+    }, [userRole, baseNavItems, isClubMember]);
     const branding = useMemo(() => getBrandingByRole(userRole), [userRole]);
 
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);

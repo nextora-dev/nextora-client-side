@@ -70,7 +70,7 @@ export default function CreateListingDialog({ open, onClose, onSubmit, isCreatin
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight={700}>{title}</Typography>
+                <Typography variant="h6" component="div" fontWeight={700}>{title}</Typography>
                 <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
             </DialogTitle>
             <DialogContent dividers>
