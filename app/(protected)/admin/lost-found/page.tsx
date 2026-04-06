@@ -181,7 +181,7 @@ export default function AdminLostFoundPage() {
             </Box>
 
             {/* Tabs */}
-            <Tabs value={mainTab === false ? 0 : mainTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto" sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
+            <Tabs value={mainTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto" sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
                 <Tab value={0} label="Lost Items" />
                 <Tab value={1} label="Found Items" />
                 <Tab value={2} label="Pending Claims" />
