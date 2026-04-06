@@ -168,10 +168,10 @@ export default function NonAcademicLostFoundPage() {
             </Stack>
 
             {/* Tabs */}
-            <Tabs value={mainTab} onChange={handleTabChange} sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
-                <Tab label="Lost Items" icon={<ReportProblemIcon />} iconPosition="start" />
-                <Tab label="Found Items" icon={<FindInPageIcon />} iconPosition="start" />
-                <Tab label="My Claims" icon={<GavelIcon />} iconPosition="start" />
+            <Tabs value={mainTab === false ? 0 : mainTab} onChange={handleTabChange} sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
+                <Tab value={0} label="Lost Items" icon={<ReportProblemIcon />} iconPosition="start" />
+                <Tab value={1} label="Found Items" icon={<FindInPageIcon />} iconPosition="start" />
+                <Tab value={2} label="My Claims" icon={<GavelIcon />} iconPosition="start" />
             </Tabs>
 
             {/* Content */}

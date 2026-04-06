@@ -143,8 +143,8 @@ export default function AcademicDashboard() {
                 <QuickAccessGrid actions={QUICK_ACTIONS} onActionClick={handleNavigation} isLoading={false} />
             </Box>
 
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12, lg: 6 }}>
+            <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+                <Grid size={{ xs: 12, md: 6, lg: 6 }}>
                     <MotionCard variants={itemVariants} sx={{ borderRadius: 3, height: '100%' }}>
                         <CardContent>
                             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
@@ -234,7 +234,7 @@ export default function AcademicDashboard() {
                     {kuppiActions.map((action, index) => {
                         const Icon = action.icon;
                         return (
-                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={index}>
                                 <MotionCard
                                     variants={itemVariants}
                                     whileHover={{ y: -4 }}

@@ -210,10 +210,10 @@ export default function StudentLostFoundPage() {
                             }}
                         />
                         <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Tabs value={mainTab} onChange={handleTabChange} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', borderRadius: 1, px: 2 }, '& .MuiTabs-indicator': { borderRadius: 1, height: 2 } }}>
-                                <Tab label="Lost Items" />
-                                <Tab label="Found Items" />
-                                <Tab label="My Claims" />
+                            <Tabs value={mainTab === false ? 0 : mainTab} onChange={handleTabChange} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', borderRadius: 1, px: 2 }, '& .MuiTabs-indicator': { borderRadius: 1, height: 2 } }}>
+                                <Tab value={0} label="Lost Items" />
+                                <Tab value={1} label="Found Items" />
+                                <Tab value={2} label="My Claims" />
                             </Tabs>
                             <Tooltip title="Filter by Category">
                                 <IconButton onClick={() => setShowFilters(!showFilters)} size="small" sx={{ border: '1px solid', borderColor: showFilters ? 'primary.main' : 'divider', borderRadius: 1, bgcolor: showFilters ? alpha(theme.palette.primary.main, 0.05) : 'transparent' }}>

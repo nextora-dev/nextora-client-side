@@ -503,7 +503,24 @@ export const createAnnouncementAsync = createAsyncThunk(
     'club/createAnnouncement',
     async (formData: FormData, { rejectWithValue }) => {
         try {
-            const response = await clubServices.createAnnouncement(formData);
+            // Extract fields from FormData
+            const clubId = Number(formData.get('clubId'));
+            const title = String(formData.get('title'));
+            const content = String(formData.get('content'));
+            const priority = formData.get('priority') ? String(formData.get('priority')) : undefined;
+            const isPinned = formData.get('isPinned') ? formData.get('isPinned') === 'true' : undefined;
+            const isMembersOnly = formData.get('isMembersOnly') ? formData.get('isMembersOnly') === 'true' : undefined;
+            const attachment = formData.get('attachment') as File | null | undefined;
+
+            const response = await clubServices.createAnnouncement(
+                clubId,
+                title,
+                content,
+                priority,
+                isPinned,
+                isMembersOnly,
+                attachment || undefined,
+            );
             // response is AnnouncementDetailResponse { success, message, data: AnnouncementResponse }
             return response.data;
         } catch (error: unknown) {
