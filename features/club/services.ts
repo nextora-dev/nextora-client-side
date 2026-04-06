@@ -36,9 +36,9 @@ import {
 // Endpoints
 // ============================================================================
 
-const CLUB_BASE = '/clubs';
-const CLUB_ANNOUNCEMENTS_BASE = '/clubs/announcements';
-const CLUB_ADMIN_BASE = '/admin/clubs';
+const CLUB_BASE = '/club';
+const CLUB_ANNOUNCEMENTS_BASE = '/club/announcements';
+const CLUB_ADMIN_BASE = '/admin/club';
 const ELECTION_BASE = '/clubs/election';
 
 export const CLUB_ENDPOINTS = {
@@ -291,8 +291,33 @@ export async function suspendMembership(membershipId: number, reason?: string): 
 // ============================================================================
 
 /** Create announcement (form-data) */
-export async function createAnnouncement(formData: FormData): Promise<AnnouncementDetailResponse> {
-    const response = await apiClient.post<AnnouncementDetailResponse>(CLUB_ENDPOINTS.ANNOUNCEMENTS_CREATE, formData);
+export async function createAnnouncement(
+    clubId: number,
+    title: string,
+    content: string,
+    priority?: string,
+    isPinned?: boolean,
+    isMembersOnly?: boolean,
+    attachment?: File,
+): Promise<AnnouncementDetailResponse> {
+    const formData = new FormData();
+    
+    // Add all parameters as form fields (multipart/form-data)
+    formData.append('clubId', String(clubId));
+    formData.append('title', title);
+    formData.append('content', content);
+    if (priority) formData.append('priority', priority);
+    if (isPinned !== undefined) formData.append('isPinned', String(isPinned));
+    if (isMembersOnly !== undefined) formData.append('isMembersOnly', String(isMembersOnly));
+    if (attachment) formData.append('attachment', attachment);
+
+    const response = await apiClient.post<AnnouncementDetailResponse>(
+        CLUB_ENDPOINTS.ANNOUNCEMENTS_CREATE,
+        formData,
+        {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }
+    );
     return response.data;
 }
 

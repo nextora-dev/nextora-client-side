@@ -150,12 +150,12 @@ export default function SuperAdminLostFoundPage() {
                 </Grid>
             </Box>
 
-            <Tabs value={mainTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto" sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
-                <Tab label="Lost Items" />
-                <Tab label="Found Items" />
-                <Tab label="Pending Claims" />
-                <Tab label="Approved Claims" />
-                <Tab label="Rejected Claims" />
+            <Tabs value={mainTab === false ? 0 : mainTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto" sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
+                <Tab value={0} label="Lost Items" />
+                <Tab value={1} label="Found Items" />
+                <Tab value={2} label="Pending Claims" />
+                <Tab value={3} label="Approved Claims" />
+                <Tab value={4} label="Rejected Claims" />
             </Tabs>
 
             <MotionCard variants={itemVariants} elevation={0} sx={{ borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>

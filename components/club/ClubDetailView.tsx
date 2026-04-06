@@ -220,6 +220,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
     const [announcementContent, setAnnouncementContent] = useState('');
     const [announcementIsPublic, setAnnouncementIsPublic] = useState(true);
     const [announcementImage, setAnnouncementImage] = useState<File | null>(null);
+    const [announcementPriority, setAnnouncementPriority] = useState('NORMAL');
+    const [announcementIsPinned, setAnnouncementIsPinned] = useState(false);
     const [isAnnouncementSaving, setIsAnnouncementSaving] = useState(false);
     const [deleteAnnouncementTarget, setDeleteAnnouncementTarget] = useState<AnnouncementResponse | null>(null);
     const [deleteAnnouncementOpen, setDeleteAnnouncementOpen] = useState(false);
@@ -487,6 +489,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
         setAnnouncementContent('');
         setAnnouncementIsPublic(true);
         setAnnouncementImage(null);
+        setAnnouncementPriority('NORMAL');
+        setAnnouncementIsPinned(false);
         setAnnouncementDialogOpen(true);
     }, []);
 
@@ -496,6 +500,8 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
         setAnnouncementContent(a.content);
         setAnnouncementIsPublic(!a.isMembersOnly);
         setAnnouncementImage(null);
+        setAnnouncementPriority(a.priority || 'NORMAL');
+        setAnnouncementIsPinned(a.isPinned || false);
         setAnnouncementDialogOpen(true);
     }, []);
 
@@ -505,7 +511,13 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
             if (announcementEditTarget) {
                 await updateAnnouncement(
                     announcementEditTarget.id,
-                    { title: announcementTitle, content: announcementContent, isMembersOnly: !announcementIsPublic },
+                    { 
+                        title: announcementTitle, 
+                        content: announcementContent, 
+                        isMembersOnly: !announcementIsPublic,
+                        priority: announcementPriority as any,
+                        isPinned: announcementIsPinned,
+                    },
                     announcementImage || undefined,
                 );
             } else {
@@ -514,13 +526,15 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
                 formData.append('title', announcementTitle);
                 formData.append('content', announcementContent);
                 formData.append('isMembersOnly', String(!announcementIsPublic));
+                formData.append('priority', announcementPriority);
+                formData.append('isPinned', String(announcementIsPinned));
                 if (announcementImage) formData.append('attachment', announcementImage);
                 await createAnnouncement(formData);
             }
             setAnnouncementDialogOpen(false);
             loadAnnouncements(clubId, { page: announcementsPage, size: announcementsPageSize });
         } finally { setIsAnnouncementSaving(false); }
-    }, [clubId, announcementTitle, announcementContent, announcementIsPublic, announcementImage, announcementEditTarget, createAnnouncement, updateAnnouncement, loadAnnouncements, announcementsPage, announcementsPageSize]);
+    }, [clubId, announcementTitle, announcementContent, announcementIsPublic, announcementPriority, announcementIsPinned, announcementImage, announcementEditTarget, createAnnouncement, updateAnnouncement, loadAnnouncements, announcementsPage, announcementsPageSize]);
 
     const handleDeleteAnnouncement = useCallback(async () => {
         if (!deleteAnnouncementTarget) return;
@@ -693,7 +707,7 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
                 <CardContent sx={{ p: 2 }}>
                     <Tabs value={mainTab} onChange={(_, v) => setMainTab(v)} variant="scrollable" scrollButtons="auto"
                         sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, textTransform: 'none', fontWeight: 600, fontSize: '0.8125rem', borderRadius: 1, px: 2 }, '& .MuiTabs-indicator': { borderRadius: 1, height: 2 } }}>
-                        {tabLabels.map((label, i) => <Tab key={i} label={label} />)}
+                        {tabLabels.map((label, i) => <Tab key={i} label={label} value={i} />)}
                     </Tabs>
                 </CardContent>
             </MotionCard>
@@ -709,9 +723,9 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
                             </Box>
                             <Typography variant="h6" fontWeight={700}>Members</Typography>
                         </Stack>
-                        <Tabs value={memberSubTab} onChange={handleMemberSubTabChange} sx={{ mb: 2, minHeight: 32, '& .MuiTab-root': { minHeight: 32, textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', px: 1.5, py: 0 }, '& .MuiTabs-indicator': { height: 2, borderRadius: 1 } }}>
-                            <Tab label={`All Members (${totalMembers})`} />
-                            <Tab label={`Active (${totalActiveMembers})`} />
+                        <Tabs value={memberSubTab === false ? 0 : memberSubTab} onChange={handleMemberSubTabChange} sx={{ mb: 2, minHeight: 32, '& .MuiTab-root': { minHeight: 32, textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', px: 1.5, py: 0 }, '& .MuiTabs-indicator': { height: 2, borderRadius: 1 } }}>
+                            <Tab value={0} label={`All Members (${totalMembers})`} />
+                            <Tab value={1} label={`Active (${totalActiveMembers})`} />
                         </Tabs>
                         {isMembershipLoading ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
@@ -859,10 +873,10 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
                             <Typography variant="h6" fontWeight={700}>Elections</Typography>
                         </Stack>
                         {/* Election sub-tabs */}
-                        <Tabs value={electionSubTab} onChange={handleElectionSubTabChange} sx={{ mb: 2, minHeight: 32, '& .MuiTab-root': { minHeight: 32, textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', px: 1.5, py: 0 }, '& .MuiTabs-indicator': { height: 2, borderRadius: 1 } }}>
-                            <Tab label="All" />
-                            <Tab label="Active" />
-                            <Tab label="Upcoming" />
+                        <Tabs value={electionSubTab === false ? 0 : electionSubTab} onChange={handleElectionSubTabChange} sx={{ mb: 2, minHeight: 32, '& .MuiTab-root': { minHeight: 32, textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', px: 1.5, py: 0 }, '& .MuiTabs-indicator': { height: 2, borderRadius: 1 } }}>
+                            <Tab value={0} label="All" />
+                            <Tab value={1} label="Active" />
+                            <Tab value={2} label="Upcoming" />
                         </Tabs>
                         {isElectionLoading ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
@@ -970,6 +984,16 @@ export default function ClubDetailView({ clubId, backPath, isAdmin = false, isSu
                     <Stack spacing={2.5} sx={{ mt: 1 }}>
                         <TextField label="Title" value={announcementTitle} onChange={(e) => setAnnouncementTitle(e.target.value)} fullWidth required sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }} />
                         <TextField label="Content" value={announcementContent} onChange={(e) => setAnnouncementContent(e.target.value)} fullWidth required multiline rows={4} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }} />
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Priority</InputLabel>
+                            <Select value={announcementPriority} onChange={(e) => setAnnouncementPriority(e.target.value)} label="Priority" sx={{ borderRadius: 1 }}>
+                                <MenuItem value="LOW">Low</MenuItem>
+                                <MenuItem value="NORMAL">Normal</MenuItem>
+                                <MenuItem value="HIGH">High</MenuItem>
+                                <MenuItem value="URGENT">Urgent</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <FormControlLabel control={<Switch checked={announcementIsPinned} onChange={(e) => setAnnouncementIsPinned(e.target.checked)} color="primary" />} label="Pin to top" />
                         <FormControlLabel control={<Switch checked={announcementIsPublic} onChange={(e) => setAnnouncementIsPublic(e.target.checked)} color="primary" />} label={announcementIsPublic ? 'Public (visible to everyone)' : 'Members only'} />
                         <Button variant="outlined" component="label" sx={{ borderRadius: 1, textTransform: 'none' }}>
                             {announcementImage ? announcementImage.name : 'Upload Image (optional)'}

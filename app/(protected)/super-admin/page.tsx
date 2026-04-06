@@ -14,7 +14,6 @@ import WarningIcon from '@mui/icons-material/Warning';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventIcon from '@mui/icons-material/Event';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PendingIcon from '@mui/icons-material/Pending';
@@ -353,11 +352,11 @@ export default function SuperAdminDashboardPage() {
                     </Button>
                 </Stack>
 
-                <Grid container spacing={2}>
+                <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
                     {clubActions.map((action, index) => {
                         const Icon = action.icon;
                         return (
-                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={index}>
                                 <MotionCard
                                     variants={itemVariants}
                                     whileHover={{ y: -4 }}
@@ -415,4 +414,3 @@ export default function SuperAdminDashboardPage() {
         </MotionBox>
     );
 }
-

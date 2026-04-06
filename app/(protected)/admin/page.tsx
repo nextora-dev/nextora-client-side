@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Button, alpha, IconButton, CircularProgress } from '@mui/material';
+import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Button, alpha, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
 import PeopleIcon from '@mui/icons-material/People';
 import EventIcon from '@mui/icons-material/Event';
@@ -10,12 +10,10 @@ import SchoolIcon from '@mui/icons-material/School';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
-import AssignmentIcon from '@mui/icons-material/Assignment';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PendingIcon from '@mui/icons-material/Pending';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -111,11 +109,11 @@ export default function AdminDashboardPage() {
                 <Typography variant="body1" color="text.secondary">Welcome back, {user?.firstName || 'Admin'}!</Typography>
             </MotionBox>
 
-            <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }} sx={{ mb: 4 }}>
                 {ADMIN_STATS.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                        <Grid size={{ xs: 6, md: 3 }} key={stat.title}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.title}>
                             <MotionCard variants={itemVariants} whileHover={{ y: -4 }} sx={{ borderRadius: 3 }}>
                                 <CardContent>
                                     <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
@@ -138,8 +136,8 @@ export default function AdminDashboardPage() {
                 })}
             </Grid>
 
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
+            <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+                <Grid size={{ xs: 12, md: 6, lg: 6 }}>
                     <MotionCard variants={itemVariants} sx={{ borderRadius: 3, height: '100%' }}>
                         <CardContent>
                             <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>Recent Activity</Typography>
@@ -204,7 +202,7 @@ export default function AdminDashboardPage() {
                     {kuppiActions.map((action, index) => {
                         const Icon = action.icon;
                         return (
-                            <Grid size={{ xs: 6, sm: 3 }} key={index}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={index}>
                                 <MotionCard
                                     variants={itemVariants}
                                     whileHover={{ y: -4 }}
@@ -260,4 +258,3 @@ export default function AdminDashboardPage() {
         </MotionBox>
     );
 }
-

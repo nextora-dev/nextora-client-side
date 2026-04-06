@@ -7,7 +7,7 @@ import {
     Divider, Snackbar, Alert, Stack, Grid, alpha, useTheme, CircularProgress,
     Paper, Skeleton, Tabs, Tab, TablePagination,
     Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Switch, FormControlLabel,
+    TextField, Switch, FormControlLabel, InputAdornment, IconButton,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -26,6 +26,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import BadgeIcon from '@mui/icons-material/Badge';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import { useClub } from '@/hooks/useClub';
 import { AnnouncementCard } from '@/components/club/AnnouncementCard';
 import { ElectionCard } from '@/components/club/ElectionCard';
@@ -33,6 +34,7 @@ import { JoinClubDialog } from '@/components/club/JoinClubDialog';
 import { FACULTY_LABELS } from '@/constants/faculty';
 import type { MembershipResponse, ClubPosition, ClubOfficer as ClubOfficerType, AnnouncementResponse } from '@/features/club/types';
 import { isOfficerPosition } from '@/features/club/permissions';
+import * as clubServices from '@/features/club/services';
 
 const MotionCard = motion.create(Card);
 
@@ -78,6 +80,7 @@ export default function StudentClubDetailPage() {
         loadPublicAnnouncements,
         loadPinnedAnnouncements,
         loadAnnouncements,
+        searchAnnouncementsAction,
         createAnnouncement,
         updateAnnouncement,
         removeAnnouncement,
@@ -102,6 +105,7 @@ export default function StudentClubDetailPage() {
     const [electionSubTab, setElectionSubTab] = useState(0); // 0=All, 1=Active, 2=Upcoming
     const [announcementsPage, setAnnouncementsPage] = useState(0);
     const [announcementsPageSize, setAnnouncementsPageSize] = useState(10);
+    const [announcementSearch, setAnnouncementSearch] = useState('');
     const [electionsPage, setElectionsPage] = useState(0);
     const [electionsPageSize, setElectionsPageSize] = useState(10);
 
@@ -142,6 +146,7 @@ export default function StudentClubDetailPage() {
         if (successMessage) { setSnackbar({ open: true, message: successMessage, severity: 'success' }); clearSuccess(); }
     }, [error, successMessage, clearError, clearSuccess]);
 
+
     // ── Derived data ──
     const myMembership = useMemo(() =>
         myMemberships.find((m) => m.clubId === clubId && (m.status === 'ACTIVE' || m.status === 'PENDING')),
@@ -156,6 +161,21 @@ export default function StudentClubDetailPage() {
         [isMember, myMembership],
     );
     const canManageAnnouncements = isOfficer;
+
+    // ── Announcement search ──
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (announcementSearch.trim()) {
+                searchAnnouncementsAction({ keyword: announcementSearch, page: 0, size: announcementsPageSize });
+            } else if (isOfficer) {
+                loadAnnouncements(clubId, { page: 0, size: announcementsPageSize });
+            } else {
+                loadPublicAnnouncements(clubId, { page: 0, size: announcementsPageSize });
+            }
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [announcementSearch, announcementsPageSize, clubId, isOfficer, searchAnnouncementsAction, loadAnnouncements, loadPublicAnnouncements]);
+
 
     // Merge pinned + regular announcements into one list: pinned first, then unpinned (no duplicates)
     const allAnnouncements = useMemo(() => {
@@ -256,18 +276,25 @@ export default function StudentClubDetailPage() {
     const [announcementEditTarget, setAnnouncementEditTarget] = useState<AnnouncementResponse | null>(null);
     const [announcementTitle, setAnnouncementTitle] = useState('');
     const [announcementContent, setAnnouncementContent] = useState('');
+    const [announcementPriority, setAnnouncementPriority] = useState('NORMAL');
+    const [announcementIsPinned, setAnnouncementIsPinned] = useState(false);
     const [announcementIsPublic, setAnnouncementIsPublic] = useState(true);
     const [announcementImage, setAnnouncementImage] = useState<File | null>(null);
     const [isAnnouncementSaving, setIsAnnouncementSaving] = useState(false);
     const [deleteAnnouncementTarget, setDeleteAnnouncementTarget] = useState<AnnouncementResponse | null>(null);
     const [deleteAnnouncementOpen, setDeleteAnnouncementOpen] = useState(false);
+    // Validation errors
+    const [announcementErrors, setAnnouncementErrors] = useState<{ title?: string; content?: string }>({});
 
     const openCreateAnnouncement = useCallback(() => {
         setAnnouncementEditTarget(null);
         setAnnouncementTitle('');
         setAnnouncementContent('');
+        setAnnouncementPriority('NORMAL');
+        setAnnouncementIsPinned(false);
         setAnnouncementIsPublic(true);
         setAnnouncementImage(null);
+        setAnnouncementErrors({});
         setAnnouncementDialogOpen(true);
     }, []);
 
@@ -275,35 +302,72 @@ export default function StudentClubDetailPage() {
         setAnnouncementEditTarget(a);
         setAnnouncementTitle(a.title);
         setAnnouncementContent(a.content);
+        setAnnouncementPriority(a.priority || 'NORMAL');
+        setAnnouncementIsPinned(a.isPinned || false);
         setAnnouncementIsPublic(!a.isMembersOnly);
         setAnnouncementImage(null);
+        setAnnouncementErrors({});
         setAnnouncementDialogOpen(true);
     }, []);
 
+    // ── Validation ──
+    const validateAnnouncement = (): boolean => {
+        const errors: { title?: string; content?: string } = {};
+
+        if (!announcementTitle || announcementTitle.trim().length === 0) {
+            errors.title = 'Title is required';
+        } else if (announcementTitle.length > 200) {
+            errors.title = 'Title must be 200 characters or less';
+        }
+
+        if (!announcementContent || announcementContent.trim().length === 0) {
+            errors.content = 'Content is required';
+        } else if (announcementContent.length > 5000) {
+            errors.content = 'Content must be 5000 characters or less';
+        }
+
+        setAnnouncementErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleSaveAnnouncement = useCallback(async () => {
+        // Validate before saving
+        if (!validateAnnouncement()) {
+            return;
+        }
+
         setIsAnnouncementSaving(true);
         try {
             if (announcementEditTarget) {
                 await updateAnnouncement(
                     announcementEditTarget.id,
-                    { title: announcementTitle, content: announcementContent, isMembersOnly: !announcementIsPublic },
+                    {
+                        title: announcementTitle,
+                        content: announcementContent,
+                        isMembersOnly: !announcementIsPublic,
+                        priority: announcementPriority as any,
+                        isPinned: announcementIsPinned,
+                    },
                     announcementImage || undefined,
                 );
             } else {
-                const formData = new FormData();
-                formData.append('clubId', String(clubId));
-                formData.append('title', announcementTitle);
-                formData.append('content', announcementContent);
-                formData.append('isMembersOnly', String(!announcementIsPublic));
-                if (announcementImage) formData.append('attachment', announcementImage);
-                await createAnnouncement(formData);
+                // Use the service function directly with proper parameters
+                await clubServices.createAnnouncement(
+                    clubId,
+                    announcementTitle,
+                    announcementContent,
+                    announcementPriority,
+                    announcementIsPinned,
+                    !announcementIsPublic,
+                    announcementImage || undefined,
+                );
             }
             setAnnouncementDialogOpen(false);
             const loader = isOfficer ? loadAnnouncements : loadPublicAnnouncements;
             loader(clubId, { page: announcementsPage, size: announcementsPageSize });
             loadPinnedAnnouncements(clubId, { page: 0, size: 10 });
         } finally { setIsAnnouncementSaving(false); }
-    }, [clubId, announcementTitle, announcementContent, announcementIsPublic, announcementImage, announcementEditTarget, isOfficer, createAnnouncement, updateAnnouncement, loadAnnouncements, loadPublicAnnouncements, loadPinnedAnnouncements, announcementsPage, announcementsPageSize]);
+    }, [clubId, announcementTitle, announcementContent, announcementPriority, announcementIsPinned, announcementIsPublic, announcementImage, announcementEditTarget, isOfficer, loadAnnouncements, loadPublicAnnouncements, loadPinnedAnnouncements, announcementsPage, announcementsPageSize, updateAnnouncement]);
 
     const handleDeleteAnnouncement = useCallback(async () => {
         if (!deleteAnnouncementTarget) return;
@@ -609,17 +673,42 @@ export default function StudentClubDetailPage() {
                                         <Typography variant="h6" fontWeight={700}>Announcements</Typography>
                                         <Chip label={totalAnnouncements} size="small" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, bgcolor: alpha('#8B5CF6', 0.1), color: '#8B5CF6' }} />
                                     </Stack>
-                                    {canManageAnnouncements && (
-                                        <Button
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <TextField
+                                            placeholder="Search announcements..."
+                                            value={announcementSearch}
+                                            onChange={(e) => setAnnouncementSearch(e.target.value)}
                                             size="small"
-                                            variant="contained"
-                                            startIcon={<AddIcon />}
-                                            onClick={openCreateAnnouncement}
-                                            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#8B5CF6', '&:hover': { bgcolor: '#7C3AED' } }}
-                                        >
-                                            New
-                                        </Button>
-                                    )}
+                                            sx={{ width: 220, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                                            slotProps={{
+                                                input: {
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                                                        </InputAdornment>
+                                                    ),
+                                                    endAdornment: announcementSearch ? (
+                                                        <InputAdornment position="end">
+                                                            <IconButton size="small" onClick={() => setAnnouncementSearch('')} sx={{ p: 0 }}>
+                                                                <Typography sx={{ fontSize: 14, cursor: 'pointer', color: 'text.disabled' }}>✕</Typography>
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    ) : null,
+                                                },
+                                            }}
+                                        />
+                                        {canManageAnnouncements && (
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                startIcon={<AddIcon />}
+                                                onClick={openCreateAnnouncement}
+                                                sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#8B5CF6', '&:hover': { bgcolor: '#7C3AED' } }}
+                                            >
+                                                New
+                                            </Button>
+                                        )}
+                                    </Stack>
                                 </Stack>
 
                                 {/* Content */}
@@ -873,24 +962,68 @@ export default function StudentClubDetailPage() {
                     </DialogTitle>
                     <DialogContent sx={{ pt: 2 }}>
                         <Stack spacing={2.5} sx={{ mt: 1 }}>
+                            {/* Title */}
+                            <Box>
+                                <TextField
+                                    label="Title *"
+                                    value={announcementTitle}
+                                    onChange={(e) => {
+                                        setAnnouncementTitle(e.target.value);
+                                        if (announcementErrors.title) setAnnouncementErrors({ ...announcementErrors, title: undefined });
+                                    }}
+                                    fullWidth
+                                    error={!!announcementErrors.title}
+                                    helperText={announcementErrors.title || `${announcementTitle.length}/200`}
+                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                                />
+                            </Box>
+
+                            {/* Content */}
+                            <Box>
+                                <TextField
+                                    label="Content *"
+                                    value={announcementContent}
+                                    onChange={(e) => {
+                                        setAnnouncementContent(e.target.value);
+                                        if (announcementErrors.content) setAnnouncementErrors({ ...announcementErrors, content: undefined });
+                                    }}
+                                    fullWidth
+                                    error={!!announcementErrors.content}
+                                    helperText={announcementErrors.content || `${announcementContent.length}/5000`}
+                                    multiline
+                                    rows={4}
+                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                                />
+                            </Box>
+
+                            {/* Priority */}
                             <TextField
-                                label="Title"
-                                value={announcementTitle}
-                                onChange={(e) => setAnnouncementTitle(e.target.value)}
+                                select
+                                label="Priority"
+                                value={announcementPriority}
+                                onChange={(e) => setAnnouncementPriority(e.target.value)}
                                 fullWidth
-                                required
+                                SelectProps={{ native: true }}
                                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                            >
+                                <option value="NORMAL">Normal</option>
+                                <option value="HIGH">High</option>
+                                <option value="URGENT">Urgent</option>
+                            </TextField>
+
+                            {/* Pin Announcement */}
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={announcementIsPinned}
+                                        onChange={(e) => setAnnouncementIsPinned(e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label={announcementIsPinned ? 'Pinned (show at top)' : 'Not pinned'}
                             />
-                            <TextField
-                                label="Content"
-                                value={announcementContent}
-                                onChange={(e) => setAnnouncementContent(e.target.value)}
-                                fullWidth
-                                required
-                                multiline
-                                rows={4}
-                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                            />
+
+                            {/* Visibility */}
                             <FormControlLabel
                                 control={
                                     <Switch
@@ -901,9 +1034,15 @@ export default function StudentClubDetailPage() {
                                 }
                                 label={announcementIsPublic ? 'Public (visible to everyone)' : 'Members only'}
                             />
-                            <Button variant="outlined" component="label" sx={{ borderRadius: 1, textTransform: 'none' }}>
-                                {announcementImage ? announcementImage.name : 'Upload Image (optional)'}
-                                <input type="file" hidden accept="image/*" onChange={(e) => setAnnouncementImage(e.target.files?.[0] || null)} />
+
+                            {/* Attachment */}
+                            <Button
+                                variant="outlined"
+                                component="label"
+                                sx={{ borderRadius: 1, textTransform: 'none', justifyContent: 'flex-start', color: 'text.primary', borderColor: 'divider' }}
+                            >
+                                {announcementImage ? `✓ ${announcementImage.name}` : '+ Upload Attachment (optional)'}
+                                <input type="file" hidden onChange={(e) => setAnnouncementImage(e.target.files?.[0] || null)} />
                             </Button>
                         </Stack>
                     </DialogContent>
@@ -919,9 +1058,9 @@ export default function StudentClubDetailPage() {
                         <Button
                             onClick={handleSaveAnnouncement}
                             variant="contained"
-                            disabled={isAnnouncementSaving || !announcementTitle.trim() || !announcementContent.trim()}
+                            disabled={isAnnouncementSaving || Object.keys(announcementErrors).length > 0}
                             startIcon={isAnnouncementSaving ? <CircularProgress size={18} color="inherit" /> : undefined}
-                            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#8B5CF6', '&:hover': { bgcolor: '#7C3AED' } }}
+                            sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#8B5CF6', '&:hover': { bgcolor: '#7C3AED' }, '&:disabled': { opacity: 0.6 } }}
                         >
                             {isAnnouncementSaving ? 'Saving...' : (announcementEditTarget ? 'Update' : 'Create')}
                         </Button>

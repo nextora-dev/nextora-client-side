@@ -77,15 +77,16 @@ function MembershipCard({ membership, onLeave, onSelect }: {
         <Paper
             elevation={0}
             sx={{
-                p: 2.5,
+                p: { xs: 1.5, sm: 2.5 },
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 1,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 2,
+                gap: { xs: 1.5, sm: 2 },
                 cursor: 'pointer',
                 transition: 'all 0.25s ease',
+                flexWrap: { xs: 'wrap', sm: 'nowrap' },
                 '&:hover': {
                     borderColor: 'primary.main',
                     transform: 'translateY(-2px)',
@@ -96,34 +97,35 @@ function MembershipCard({ membership, onLeave, onSelect }: {
         >
             <Avatar
                 sx={{
-                    width: 44,
-                    height: 44,
+                    width: { xs: 36, sm: 44 },
+                    height: { xs: 36, sm: 44 },
                     bgcolor: alpha(posColor, 0.1),
                     color: posColor,
                     fontWeight: 700,
-                    fontSize: '1rem',
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
                     border: '2px solid',
                     borderColor: alpha(posColor, 0.2),
+                    flexShrink: 0,
                 }}
             >
                 {membership.clubName.charAt(0)}
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Typography variant="body1" fontWeight={700} noWrap>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                    <Typography variant="body1" fontWeight={700} noWrap sx={{ fontSize: { xs: '0.9375rem', sm: '1rem' } }}>
                         {membership.clubName}
                     </Typography>
                     {membership.status === 'ACTIVE' && (
-                        <VerifiedIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                        <VerifiedIcon sx={{ fontSize: { xs: 14, sm: 16 }, color: 'success.main', flexShrink: 0 }} />
                     )}
                 </Box>
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                     <Chip
                         label={membership.position?.replace(/_/g, ' ') || 'Member'}
                         size="small"
                         sx={{
-                            fontSize: '0.7rem',
-                            height: 22,
+                            fontSize: { xs: '0.6rem', sm: '0.7rem' },
+                            height: { xs: 18, sm: 22 },
                             fontWeight: 600,
                             bgcolor: alpha(posColor, 0.1),
                             color: posColor,
@@ -135,12 +137,12 @@ function MembershipCard({ membership, onLeave, onSelect }: {
                         label={membership.status}
                         size="small"
                         color={membership.status === 'ACTIVE' ? 'success' : 'warning'}
-                        sx={{ fontSize: '0.7rem', height: 22 }}
+                        sx={{ fontSize: { xs: '0.6rem', sm: '0.7rem' }, height: { xs: 18, sm: 22 } }}
                     />
                 </Stack>
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                <Stack direction="row" spacing={0.5} alignItems="center">
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, flexShrink: 0 }}>
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'none', sm: 'flex' } }}>
                     <CalendarTodayIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
                     <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
                         {new Date(membership.joinDate || membership.joinedAt || membership.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -160,10 +162,12 @@ function MembershipCard({ membership, onLeave, onSelect }: {
                                 borderColor: alpha(theme.palette.error.main, 0.2),
                                 borderRadius: 1,
                                 bgcolor: alpha(theme.palette.error.main, 0.06),
+                                width: { xs: 28, sm: 32 },
+                                height: { xs: 28, sm: 32 },
                                 '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.12) },
                             }}
                         >
-                            <ExitToAppIcon sx={{ fontSize: 16 }} />
+                            <ExitToAppIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />
                         </IconButton>
                     </Tooltip>
                 )}
@@ -300,19 +304,33 @@ export default function StudentClubsPage() {
     ];
 
     return (
-        <MotionBox variants={containerVariants} initial="hidden" animate="show" sx={{ maxWidth: 1400, mx: 'auto' }}>
+        <MotionBox variants={containerVariants} initial="hidden" animate="show" sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 2, sm: 3, md: 4 } }}>
             {/* ══════════════  PAGE HEADER  ══════════════ */}
-            <MotionBox variants={itemVariants} sx={{ mb: 4 }}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2}>
+            <MotionBox variants={itemVariants} sx={{ mb: 3 }}>
+                <Stack 
+                    direction={{ xs: 'column', sm: 'row' }} 
+                    justifyContent="space-between" 
+                    alignItems={{ xs: 'flex-start', sm: 'center' }} 
+                    spacing={{ xs: 1.5, sm: 2 }}
+                >
                     <Box>
-                        <Typography variant="h4" fontWeight={700} gutterBottom sx={{ letterSpacing: '-0.02em' }}>
+                        <Typography 
+                            variant="h4" 
+                            fontWeight={700} 
+                            gutterBottom 
+                            sx={{ letterSpacing: '-0.02em', fontSize: { xs: '1.75rem', sm: '2.125rem' } }}
+                        >
                             Clubs
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                        >
                             Browse, join, and explore university clubs
                         </Typography>
                     </Box>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ width: { xs: '100%', sm: 'auto' } }}>
                         {activeMemberships.length > 0 && (
                             <Chip
                                 icon={<GroupsIcon sx={{ fontSize: '16px !important' }} />}
@@ -333,8 +351,8 @@ export default function StudentClubsPage() {
             </MotionBox>
 
             {/* ══════════════  STATS GRID  ══════════════ */}
-            <Box sx={{ mb: 4 }}>
-                <Grid container spacing={2}>
+            <Box sx={{ mb: 3 }}>
+                <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
                     {stats.map((stat, index) => {
                         const Icon = stat.icon;
                         return (
@@ -346,15 +364,16 @@ export default function StudentClubsPage() {
                                         border: '1px solid',
                                         borderColor: 'divider',
                                         transition: 'all 0.2s',
+                                        height: '100%',
                                         '&:hover': { borderColor: stat.color, boxShadow: `0 4px 16px ${alpha(stat.color, 0.15)}` },
                                     }}
                                 >
-                                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                                    <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
+                                        <Stack direction="row" alignItems="center" spacing={1}>
                                             <Box
                                                 sx={{
-                                                    width: 44,
-                                                    height: 44,
+                                                    width: 40,
+                                                    height: 40,
                                                     borderRadius: 1,
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -364,11 +383,23 @@ export default function StudentClubsPage() {
                                                     borderColor: alpha(stat.color, 0.15),
                                                 }}
                                             >
-                                                <Icon sx={{ color: stat.color, fontSize: 22 }} />
+                                                <Icon sx={{ color: stat.color, fontSize: { xs: 18, sm: 22 } }} />
                                             </Box>
-                                            <Box>
-                                                <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.1 }}>{stat.value}</Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>{stat.label}</Typography>
+                                            <Box sx={{ minWidth: 0 }}>
+                                                <Typography 
+                                                    variant="h5" 
+                                                    fontWeight={700} 
+                                                    sx={{ lineHeight: 1.1, fontSize: { xs: '1.25rem', sm: '1.5rem' } }}
+                                                >
+                                                    {stat.value}
+                                                </Typography>
+                                                <Typography 
+                                                    variant="caption" 
+                                                    color="text.secondary" 
+                                                    sx={{ lineHeight: 1, fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                                                >
+                                                    {stat.label}
+                                                </Typography>
                                             </Box>
                                         </Stack>
                                     </CardContent>
@@ -383,7 +414,7 @@ export default function StudentClubsPage() {
             <Card
                 elevation={0}
                 sx={{
-                    mb: 4,
+                    mb: 3,
                     borderRadius: 1,
                     border: '1px solid',
                     borderColor: 'divider',
@@ -391,16 +422,22 @@ export default function StudentClubsPage() {
                     backdropFilter: 'blur(12px)',
                 }}
             >
-                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
+                    <Stack 
+                        direction={{ xs: 'column', sm: 'row' }} 
+                        spacing={{ xs: 1.5, sm: 2 }} 
+                        alignItems={{ xs: 'stretch', sm: 'center' }} 
+                        justifyContent="space-between"
+                    >
                         <TextField
                             placeholder="Search clubs..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                             size="small"
+                            fullWidth
                             sx={{
-                                maxWidth: { sm: 320 },
+                                maxWidth: { xs: '100%', sm: 320 },
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: 1,
                                     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main' },
@@ -426,24 +463,32 @@ export default function StudentClubsPage() {
                                 },
                             }}
                         />
-                        <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Stack 
+                            direction={{ xs: 'column', sm: 'row' }} 
+                            spacing={{ xs: 1, sm: 1.5 }} 
+                            alignItems="center"
+                            sx={{ width: { xs: '100%', sm: 'auto' } }}
+                        >
                             <Tabs
                                 value={activeTab}
                                 onChange={handleTabChange}
                                 sx={{
                                     minHeight: 36,
+                                    width: { xs: '100%', sm: 'auto' },
                                     '& .MuiTab-root': {
                                         minHeight: 36,
                                         textTransform: 'none',
                                         fontWeight: 600,
-                                        fontSize: '0.8125rem',
+                                        fontSize: { xs: '0.7rem', sm: '0.8125rem' },
                                         borderRadius: 1,
-                                        px: 2,
+                                        px: { xs: 1, sm: 2 },
+                                        flex: { xs: 1, sm: 'auto' },
                                     },
                                     '& .MuiTabs-indicator': { borderRadius: 1, height: 2 },
                                 }}
                             >
-                                <Tab label="All Clubs" />
+                                <Tab label="All" sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />
+                                <Tab label="All Clubs" sx={{ display: { xs: 'flex', sm: 'none' } }} />
                                 <Tab label="Open" />
                                 <Tab
                                     label={
@@ -499,20 +544,20 @@ export default function StudentClubsPage() {
                 {activeTab === 2 && (
                     <MotionBox key="my" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
                         {myMemberships.length === 0 ? (
-                            <Paper elevation={0} sx={{ p: 8, textAlign: 'center', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                            <Paper elevation={0} sx={{ p: { xs: 4, sm: 8 }, textAlign: 'center', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
                                 <Box sx={{ width: 80, height: 80, borderRadius: '50%', bgcolor: alpha(theme.palette.primary.main, 0.08), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2.5 }}>
                                     <GroupsIcon sx={{ fontSize: 40, color: alpha(theme.palette.primary.main, 0.4) }} />
                                 </Box>
-                                <Typography variant="h6" fontWeight={600} gutterBottom>You haven&apos;t joined any clubs yet</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360, mx: 'auto', mb: 3 }}>Browse available clubs and submit a join request to get started.</Typography>
+                                <Typography variant="h6" fontWeight={600} gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>You haven&apos;t joined any clubs yet</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360, mx: 'auto', mb: 3, fontSize: { xs: '0.875rem', sm: '1rem' } }}>Browse available clubs and submit a join request to get started.</Typography>
                                 <Button variant="contained" onClick={() => setActiveTab(0)} size="small" sx={{ textTransform: 'none', borderRadius: 1, fontWeight: 700, boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.4)}` }}>
                                     Browse Clubs
                                 </Button>
                             </Paper>
                         ) : (
-                            <Stack spacing={1.5}>
+                            <Stack spacing={{ xs: 1, sm: 1.5 }}>
                                 {activeMemberships.length > 0 && (
-                                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 1 }}>
+                                    <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                         Active ({activeMemberships.length})
                                     </Typography>
                                 )}
@@ -521,7 +566,7 @@ export default function StudentClubsPage() {
                                 ))}
                                 {pendingMemberships.length > 0 && (
                                     <>
-                                        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 1, mt: 2 }}>Pending ({pendingMemberships.length})</Typography>
+                                        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: 1, mt: 2, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>Pending ({pendingMemberships.length})</Typography>
                                         {pendingMemberships.map((m) => (
                                             <MembershipCard key={m.id} membership={m} onLeave={() => {}} onSelect={(id) => router.push(`/student/clubs/${id}`)} />
                                         ))}

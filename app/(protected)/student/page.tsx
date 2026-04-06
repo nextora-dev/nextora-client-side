@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Divider, IconButton, Avatar, LinearProgress, Button, alpha, CircularProgress, Skeleton } from '@mui/material';
+import { Box, Typography, Card, CardContent, Grid, Stack, Paper, Chip, Divider, LinearProgress, Button, alpha, CircularProgress } from '@mui/material';
 import { motion } from 'framer-motion';
 import SchoolIcon from '@mui/icons-material/School';
 import AssignmentIcon from '@mui/icons-material/Assignment';
@@ -21,7 +21,6 @@ import WorkIcon from '@mui/icons-material/Work';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MapIcon from '@mui/icons-material/Map';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import EventIcon from '@mui/icons-material/Event';
@@ -33,7 +32,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VideoCallIcon from '@mui/icons-material/VideoCall';
 import StarIcon from '@mui/icons-material/Star';
-import { useAuth, useDashboard } from '@/hooks';
+import { useAuth } from '@/hooks';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
     fetchUpcomingSessions,
@@ -184,11 +183,11 @@ export default function StudentDashboardPage() {
             </MotionBox>
 
             {/* Stats Cards */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }} sx={{ mb: 4 }}>
                 {STUDENT_STATS.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                        <Grid size={{ xs: 6, md: 3 }} key={stat.title}>
+                        <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.title}>
                             <MotionCard variants={itemVariants} whileHover={{ y: -4 }} sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
                                 <CardContent>
                                     <Stack direction="row" alignItems="center" spacing={2}>
@@ -426,9 +425,9 @@ export default function StudentDashboardPage() {
                         </Button>
                     </Paper>
                 ) : (
-                    <Grid container spacing={2}>
+                    <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
                         {recentNotes.slice(0, 4).map((note) => (
-                            <Grid size={{ xs: 6, sm: 3 }} key={note.id}>
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={note.id}>
                                 <MotionCard
                                     whileHover={{ y: -4 }}
                                     whileTap={{ scale: 0.98 }}
