@@ -89,8 +89,8 @@ export default function BoardingHouseCommon({
             {showTabs && (
                 <MotionCard variants={itemVariants} elevation={0} sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                     <CardContent sx={{ p: 2 }}>
-                        <Tabs value={mainTab} onChange={onMainTabChange} variant="scrollable" scrollButtons="auto">
-                            {tabLabels.map((label, i) => <Tab key={i} label={label} />)}
+                        <Tabs value={mainTab === false ? 0 : mainTab} onChange={onMainTabChange} variant="scrollable" scrollButtons="auto">
+                            {tabLabels.map((label, i) => <Tab key={i} value={i} label={label} />)}
                         </Tabs>
                     </CardContent>
                 </MotionCard>

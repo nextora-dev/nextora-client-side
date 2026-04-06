@@ -90,8 +90,8 @@ export default function NonAcademicDashboard() {
                 <QuickAccessGrid actions={QUICK_ACTIONS} onActionClick={handleNavigation} isLoading={false} />
             </Box>
 
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12, lg: 6 }}>
+            <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+                <Grid size={{ xs: 12, md: 6, lg: 6 }}>
                     <MotionCard variants={itemVariants} sx={{ borderRadius: 3 }}>
                         <CardContent>
                             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>

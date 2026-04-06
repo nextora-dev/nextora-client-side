@@ -84,12 +84,12 @@ export default function KuppiCommon({ title = 'Kuppi Management', description = 
             {showTabs && (
                 <MotionCard variants={itemVariants} elevation={0} sx={{ mb: 3, borderRadius: 1, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
                     <CardContent sx={{ p: 2 }}>
-                        <Tabs value={mainTab} onChange={onMainTabChange} variant="scrollable" scrollButtons="auto">
-                            <Tab label="Applications" />
-                            <Tab label="Sessions" />
-                            <Tab label="Notes" />
+                        <Tabs value={mainTab === false ? 0 : mainTab} onChange={onMainTabChange} variant="scrollable" scrollButtons="auto">
+                            <Tab value={0} label="Applications" />
+                            <Tab value={1} label="Sessions" />
+                            <Tab value={2} label="Notes" />
                             {/* render optional extra tabs passed by pages */}
-                            {Array.isArray(extraTabs) && extraTabs.map((t, i) => <Tab key={"extra-" + i} label={t} />)}
+                            {Array.isArray(extraTabs) && extraTabs.map((t, i) => <Tab key={"extra-" + i} value={3 + i} label={t} />)}
                         </Tabs>
                      </CardContent>
                  </MotionCard>
